@@ -1,0 +1,154 @@
+{
+  "kind": "collectionType",
+  "collectionName": "courses",
+  "info": {
+    "singularName": "course",
+    "pluralName": "courses",
+    "displayName": "Course"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "description": {
+      "type": "richtext"
+    },
+    "direction": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "sketching",
+        "drawing2d",
+        "animation",
+        "modeling3d"
+      ]
+    },
+    "status": {
+      "type": "enumeration",
+      "default": "pending_approval",
+      "enum": [
+        "pending_approval",
+        "approved"
+      ]
+    },
+    "images": {
+      "type": "media",
+      "multiple": true,
+      "allowedTypes": [
+        "images"
+      ]
+    },
+    "startTime": {
+      "type": "time",
+      "required": true
+    },
+    "endTime": {
+      "type": "time",
+      "required": true
+    },
+    "weekdays": {
+      "type": "json",
+      "required": true
+    },
+    "startDate": {
+      "type": "date",
+      "required": true
+    },
+    "endDate": {
+      "type": "date",
+      "required": true
+    },
+    "timezone": {
+      "type": "string",
+      "default": "Europe/Moscow"
+    },
+    "pricePerLesson": {
+      "type": "decimal",
+      "required": true
+    },
+    "currency": {
+      "type": "string",
+      "default": "USD"
+    },
+    "country": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string"
+    },
+    "address": {
+      "type": "string"
+    },
+    "coordinates": {
+      "type": "json"
+    },
+    "googlePlaceId": {
+      "type": "string"
+    },
+    "isOnline": {
+      "type": "boolean",
+      "default": false
+    },
+    "minStudents": {
+      "type": "integer",
+      "required": true,
+      "min": 1
+    },
+    "maxStudents": {
+      "type": "integer",
+      "required": true,
+      "min": 1
+    },
+    "startAge": {
+      "type": "integer",
+      "min": 3,
+      "max": 99
+    },
+    "endAge": {
+      "type": "integer",
+      "min": 3,
+      "max": 99
+    },
+    "complexity": {
+      "type": "enumeration",
+      "enum": [
+        "beginner",
+        "experienced",
+        "professional"
+      ]
+    },
+    "courseType": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "club",
+        "course",
+        "intensive",
+        "individual"
+      ]
+    },
+    "language": {
+      "type": "string"
+    },
+    "inventoryRequired": {
+      "type": "boolean",
+      "default": false
+    },
+    "inventoryDescription": {
+      "type": "text"
+    },
+    "rentalPrice": {
+      "type": "decimal"
+    },
+    "software": {
+      "type": "string"
+    },
+    "teacher": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "courses"
+    }
+  }
+}
