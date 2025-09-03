@@ -10,7 +10,7 @@ export default {
     try {
       // Получаем роль teacher
       const teacherRole = await strapi.db.query('plugin::users-permissions.role').findOne({
-        where: { name: 'teacher' },
+        where: { name: 'Teacher' },
       });
 
       if (!teacherRole) {
@@ -59,7 +59,7 @@ export default {
 
       // Получаем роль teacher
       const teacherRole = await strapi.db.query('plugin::users-permissions.role').findOne({
-        where: { name: 'teacher' },
+        where: { name: 'Teacher' },
       });
 
       if (!teacherRole) {
