@@ -81,6 +81,12 @@
       "relation": "oneToMany",
       "target": "api::course.course",
       "mappedBy": "teacher"
+    },
+    "name": {
+      "type": "string"
+    },
+    "family": {
+      "type": "string"
     }
   }
 }
