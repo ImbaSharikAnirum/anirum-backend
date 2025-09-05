@@ -96,6 +96,12 @@
     },
     "telegram_phone": {
       "type": "string"
+    },
+    "students": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::student.student",
+      "mappedBy": "owner"
     }
   }
 }
