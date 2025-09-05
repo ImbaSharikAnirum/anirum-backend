@@ -439,6 +439,8 @@ export interface ApiCourseCourse extends Struct.CollectionTypeSchema {
         },
         number
       >;
+    normalizedEndTime: Schema.Attribute.Time & Schema.Attribute.Required;
+    normalizedStartTime: Schema.Attribute.Time & Schema.Attribute.Required;
     pricePerLesson: Schema.Attribute.Decimal & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
     rentalPrice: Schema.Attribute.Decimal;
@@ -958,6 +960,8 @@ export interface PluginUsersPermissionsUser
       'manyToOne',
       'plugin::users-permissions.role'
     >;
+    telegram_phone: Schema.Attribute.String;
+    telegram_username: Schema.Attribute.String;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -967,6 +971,7 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 3;
       }>;
+    whatsapp_phone: Schema.Attribute.String;
   };
 }
 
