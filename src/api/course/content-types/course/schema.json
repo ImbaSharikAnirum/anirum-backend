@@ -63,6 +63,14 @@
       "type": "string",
       "default": "Europe/Moscow"
     },
+    "normalizedStartTime": {
+      "type": "time",
+      "private": true
+    },
+    "normalizedEndTime": {
+      "type": "time", 
+      "private": true
+    },
     "pricePerLesson": {
       "type": "decimal",
       "required": true
