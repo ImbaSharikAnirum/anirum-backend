@@ -65,11 +65,11 @@
     },
     "normalizedStartTime": {
       "type": "time",
-      "private": true
+      "required": true
     },
     "normalizedEndTime": {
-      "type": "time", 
-      "private": true
+      "type": "time",
+      "required": true
     },
     "pricePerLesson": {
       "type": "decimal",
