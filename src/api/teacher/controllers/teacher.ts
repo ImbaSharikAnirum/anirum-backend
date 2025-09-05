@@ -24,7 +24,7 @@ export default {
           blocked: false,
           confirmed: true
         },
-        select: ['id', 'username', 'email'],
+        select: ['id', 'documentId', 'username', 'email', 'name', 'family'],
         populate: {
           avatar: {
             select: ['url', 'alternativeText']
@@ -35,8 +35,11 @@ export default {
       // Возвращаем только безопасные данные
       const safeTeachers = teachers.map(teacher => ({
         id: teacher.id,
+        documentId: teacher.documentId,
         username: teacher.username,
         email: teacher.email,
+        name: teacher.name,
+        family: teacher.family,
         avatar: teacher.avatar ? {
           url: teacher.avatar.url,
           alternativeText: teacher.avatar.alternativeText
@@ -74,7 +77,7 @@ export default {
           blocked: false,
           confirmed: true
         },
-        select: ['id', 'username', 'email'],
+        select: ['id', 'documentId', 'username', 'email', 'name', 'family'],
         populate: {
           avatar: {
             select: ['url', 'alternativeText']
@@ -89,8 +92,11 @@ export default {
       // Возвращаем только безопасные данные
       const safeTeacher = {
         id: teacher.id,
+        documentId: teacher.documentId,
         username: teacher.username,
         email: teacher.email,
+        name: teacher.name,
+        family: teacher.family,
         avatar: teacher.avatar ? {
           url: teacher.avatar.url,
           alternativeText: teacher.avatar.alternativeText
