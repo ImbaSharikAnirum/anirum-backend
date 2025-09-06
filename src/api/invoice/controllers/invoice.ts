@@ -68,9 +68,22 @@ export default factories.createCoreController('api::invoice.invoice', ({ strapi 
       console.error("Ошибка при получении курса:", error);
     }
 
-    const orderId = invoiceId
-      ? `order_invoice_${invoiceId}_${Date.now()}`
-      : `order_course_${courseId}_${Date.now()}`;
+    // Генерируем короткий уникальный orderId
+    const timestamp = Date.now().toString().slice(-8); // Последние 8 цифр
+    const randomStr = Math.random().toString(36).substring(2, 8); // 6 случайных символов
+    const orderId = `${timestamp}${randomStr}`; // 14 символов максимум
+
+    // Сохраняем orderId в invoice для webhook
+    if (invoiceId) {
+      try {
+        await strapi.documents("api::invoice.invoice").update({
+          documentId: invoiceId,
+          data: { tinkoffOrderId: orderId },
+        });
+      } catch (error) {
+        console.error("Ошибка сохранения orderId в invoice:", error);
+      }
+    }
 
     const terminalKey = process.env.TINKOFF_TERMINAL_KEY?.trim();
     const terminalPassword = process.env.TINKOFF_TERMINAL_PASSWORD?.trim();
@@ -166,22 +179,21 @@ export default factories.createCoreController('api::invoice.invoice', ({ strapi 
   async handleTinkoffNotification(ctx) {
     const { OrderId, Success, Status, PaymentId } = ctx.request.body;
 
-    // Извлекаем invoiceId из OrderId
-    let invoiceId = null;
-    if (OrderId?.startsWith("order_invoice_")) {
-      // Формат: order_invoice_123_1703123456789
-      const parts = OrderId.split("_");
-      if (parts.length >= 3) {
-        invoiceId = parts[2];
-      }
-    }
+    console.log(`🔔 Webhook от Tinkoff:`, { OrderId, Success, Status, PaymentId });
 
     try {
-      if (Success && Status === "CONFIRMED" && invoiceId) {
-        // Обновляем invoice по documentId используя Document Service API
-        try {
+      if (Success && Status === "CONFIRMED" && OrderId) {
+        // Ищем invoice по tinkoffOrderId (прямой поиск, без парсинга)
+        const invoices = await strapi.documents("api::invoice.invoice").findMany({
+          filters: {
+            tinkoffOrderId: OrderId
+          }
+        });
+
+        if (invoices.length > 0) {
+          const invoice = invoices[0];
           await strapi.documents("api::invoice.invoice").update({
-            documentId: invoiceId,
+            documentId: invoice.documentId,
             data: {
               statusPayment: true,
               paymentId: PaymentId || null,
@@ -189,21 +201,21 @@ export default factories.createCoreController('api::invoice.invoice', ({ strapi 
             },
           });
           
-          console.log(`✅ Платеж подтвержден для invoice ${invoiceId}`);
+          console.log(`✅ Платеж подтвержден для invoice ${invoice.documentId} (OrderId: ${OrderId})`);
           return ctx.send({ status: "ok" });
-        } catch (updateError) {
-          console.log(`❌ Invoice с documentId ${invoiceId} не найден или ошибка обновления:`, updateError);
-          return ctx.send({ status: "Invoice not found or update failed" });
+        } else {
+          console.log(`❌ Invoice с OrderId ${OrderId} не найден`);
+          return ctx.send({ status: "Invoice not found" });
         }
       } else {
         console.log(
-          "❌ Платеж не подтвержден или не найден invoiceId:",
-          Status
+          "❌ Платеж не подтвержден:",
+          { Success, Status, OrderId }
         );
         return ctx.send({ status: "Payment not confirmed" });
       }
     } catch (error) {
-      console.error("Ошибка при обработке уведомления:", error);
+      console.error("❌ Ошибка при обработке уведомления:", error);
       return ctx.throw(500, "Ошибка на сервере при обработке уведомления");
     }
   },

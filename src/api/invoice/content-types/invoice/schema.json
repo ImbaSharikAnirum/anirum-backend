@@ -35,6 +35,19 @@
       "type": "boolean",
       "default": false
     },
+    "tinkoffOrderId": {
+      "type": "string",
+      "unique": true,
+      "required": false
+    },
+    "paymentId": {
+      "type": "string",
+      "required": false
+    },
+    "paymentDate": {
+      "type": "datetime",
+      "required": false
+    },
     "course": {
       "type": "relation",
       "relation": "manyToOne",
