@@ -33,12 +33,10 @@ export default factories.createCoreController('api::invoice.invoice', ({ strapi 
 
     if (userId) {
       try {
-        const user = await strapi
-          .query("plugin::users-permissions.user")
-          .findOne({
-            where: { documentId: userId },
-            select: ["email"],
-          });
+        const user = await strapi.documents("plugin::users-permissions.user").findOne({
+          documentId: userId,
+          fields: ["email"],
+        });
 
         if (user && user.email) {
           userEmail = user.email;
@@ -51,12 +49,10 @@ export default factories.createCoreController('api::invoice.invoice', ({ strapi 
     // Получаем информацию о курсе по documentId
     let courseName = "Курс";
     try {
-      const course = await strapi
-        .query("api::course.course")
-        .findOne({
-          where: { documentId: courseId },
-          select: ["direction"],
-        });
+      const course = await strapi.documents("api::course.course").findOne({
+        documentId: courseId,
+        fields: ["direction"],
+      });
         
       if (course && course.direction) {
         // Преобразуем enum в читаемое название
@@ -182,15 +178,10 @@ export default factories.createCoreController('api::invoice.invoice', ({ strapi 
 
     try {
       if (Success && Status === "CONFIRMED" && invoiceId) {
-        // Находим invoice по documentId
-        const invoice = await strapi
-          .query("api::invoice.invoice")
-          .findOne({
-            where: { documentId: invoiceId },
-          });
-
-        if (invoice) {
-          await strapi.entityService.update("api::invoice.invoice", invoice.documentId, {
+        // Обновляем invoice по documentId используя Document Service API
+        try {
+          await strapi.documents("api::invoice.invoice").update({
+            documentId: invoiceId,
             data: {
               statusPayment: true,
               paymentId: PaymentId || null,
@@ -200,9 +191,9 @@ export default factories.createCoreController('api::invoice.invoice', ({ strapi 
           
           console.log(`✅ Платеж подтвержден для invoice ${invoiceId}`);
           return ctx.send({ status: "ok" });
-        } else {
-          console.log(`❌ Invoice с documentId ${invoiceId} не найден`);
-          return ctx.send({ status: "Invoice not found" });
+        } catch (updateError) {
+          console.log(`❌ Invoice с documentId ${invoiceId} не найден или ошибка обновления:`, updateError);
+          return ctx.send({ status: "Invoice not found or update failed" });
         }
       } else {
         console.log(
