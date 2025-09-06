@@ -501,10 +501,13 @@ export interface ApiInvoiceInvoice extends Struct.CollectionTypeSchema {
       'manyToOne',
       'plugin::users-permissions.user'
     >;
+    paymentDate: Schema.Attribute.DateTime;
+    paymentId: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     startDate: Schema.Attribute.Date;
     statusPayment: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     sum: Schema.Attribute.Integer;
+    tinkoffOrderId: Schema.Attribute.String & Schema.Attribute.Unique;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
