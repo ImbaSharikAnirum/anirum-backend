@@ -105,6 +105,12 @@
       "relation": "oneToMany",
       "target": "api::student.student",
       "mappedBy": "owner"
+    },
+    "invoices": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::invoice.invoice",
+      "mappedBy": "owner"
     }
   }
 }

@@ -415,6 +415,7 @@ export interface ApiCourseCourse extends Struct.CollectionTypeSchema {
     inventoryDescription: Schema.Attribute.Text;
     inventoryRequired: Schema.Attribute.Boolean &
       Schema.Attribute.DefaultTo<false>;
+    invoices: Schema.Attribute.Relation<'oneToMany', 'api::invoice.invoice'>;
     isOnline: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     language: Schema.Attribute.String;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
@@ -473,6 +474,7 @@ export interface ApiCourseCourse extends Struct.CollectionTypeSchema {
 export interface ApiInvoiceInvoice extends Struct.CollectionTypeSchema {
   collectionName: 'invoices';
   info: {
+    description: '';
     displayName: 'Invoice';
     pluralName: 'invoices';
     singularName: 'invoice';
@@ -481,6 +483,7 @@ export interface ApiInvoiceInvoice extends Struct.CollectionTypeSchema {
     draftAndPublish: true;
   };
   attributes: {
+    course: Schema.Attribute.Relation<'manyToOne', 'api::course.course'>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -494,6 +497,10 @@ export interface ApiInvoiceInvoice extends Struct.CollectionTypeSchema {
     > &
       Schema.Attribute.Private;
     name: Schema.Attribute.String;
+    owner: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
     publishedAt: Schema.Attribute.DateTime;
     startDate: Schema.Attribute.Date;
     statusPayment: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
@@ -1010,6 +1017,7 @@ export interface PluginUsersPermissionsUser
         minLength: 6;
       }>;
     family: Schema.Attribute.String;
+    invoices: Schema.Attribute.Relation<'oneToMany', 'api::invoice.invoice'>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',

@@ -4,7 +4,8 @@
   "info": {
     "singularName": "invoice",
     "pluralName": "invoices",
-    "displayName": "Invoice"
+    "displayName": "Invoice",
+    "description": ""
   },
   "options": {
     "draftAndPublish": true
@@ -33,6 +34,18 @@
     "statusPayment": {
       "type": "boolean",
       "default": false
+    },
+    "course": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::course.course",
+      "inversedBy": "invoices"
+    },
+    "owner": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "invoices"
     }
   }
 }
