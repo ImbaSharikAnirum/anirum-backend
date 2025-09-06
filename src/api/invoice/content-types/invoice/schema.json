@@ -37,16 +37,13 @@
     },
     "tinkoffOrderId": {
       "type": "string",
-      "unique": true,
-      "required": false
+      "unique": true
     },
     "paymentId": {
-      "type": "string",
-      "required": false
+      "type": "string"
     },
     "paymentDate": {
-      "type": "datetime",
-      "required": false
+      "type": "datetime"
     },
     "course": {
       "type": "relation",

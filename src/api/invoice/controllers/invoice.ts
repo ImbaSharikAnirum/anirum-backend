@@ -192,6 +192,20 @@ export default factories.createCoreController(
 
       try {
         if (Success && Status === "CONFIRMED" && OrderId) {
+          console.log(`🔍 Ищем invoice с tinkoffOrderId: ${OrderId}`);
+          
+          // Сначала проверим все invoices для отладки
+          const allInvoices = await strapi
+            .documents("api::invoice.invoice")
+            .findMany({});
+          
+          console.log(`📋 Всего invoices в базе: ${allInvoices.length}`);
+          console.log(`📝 Последние 3 invoices:`, allInvoices.slice(-3).map(inv => ({
+            documentId: inv.documentId,
+            tinkoffOrderId: inv.tinkoffOrderId,
+            statusPayment: inv.statusPayment
+          })));
+
           // Ищем invoice по tinkoffOrderId (прямой поиск, без парсинга)
           const invoices = await strapi
             .documents("api::invoice.invoice")
@@ -200,6 +214,8 @@ export default factories.createCoreController(
                 tinkoffOrderId: OrderId,
               },
             });
+
+          console.log(`🎯 Найдено invoices с OrderId ${OrderId}: ${invoices.length}`);
 
           if (invoices.length > 0) {
             const invoice = invoices[0];
