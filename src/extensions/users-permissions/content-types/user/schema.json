@@ -97,6 +97,9 @@
     "telegram_phone": {
       "type": "string"
     },
+    "birth_date": {
+      "type": "date"
+    },
     "students": {
       "type": "relation",
       "relation": "oneToMany",
