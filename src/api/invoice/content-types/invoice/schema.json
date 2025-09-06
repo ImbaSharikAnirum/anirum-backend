@@ -1,0 +1,38 @@
+{
+  "kind": "collectionType",
+  "collectionName": "invoices",
+  "info": {
+    "singularName": "invoice",
+    "pluralName": "invoices",
+    "displayName": "Invoice"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string"
+    },
+    "family": {
+      "type": "string"
+    },
+    "sum": {
+      "type": "integer"
+    },
+    "currency": {
+      "type": "string",
+      "default": "RUB"
+    },
+    "startDate": {
+      "type": "date"
+    },
+    "endDate": {
+      "type": "date"
+    },
+    "statusPayment": {
+      "type": "boolean",
+      "default": false
+    }
+  }
+}
