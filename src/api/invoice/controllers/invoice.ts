@@ -77,15 +77,21 @@ export default factories.createCoreController(
       const randomStr = Math.random().toString(36).substring(2, 8); // 6 случайных символов
       const orderId = `${timestamp}${randomStr}`; // 14 символов максимум
 
-      // Сохраняем orderId в invoice для webhook
+      // Подготавливаем invoice для платежа - устанавливаем orderId для связи с webhook
       if (invoiceId) {
         try {
           await strapi.documents("api::invoice.invoice").update({
             documentId: invoiceId,
-            data: { tinkoffOrderId: orderId },
+            data: { 
+              tinkoffOrderId: orderId,
+              paymentId: null,        // Будет заполнен после ответа от Tinkoff
+              paymentDate: null,      // Будет заполнен при подтверждении платежа
+              statusPayment: false    // Остается false до подтверждения
+            },
           });
+          console.log(`📝 Подготовлен invoice ${invoiceId} с orderId: ${orderId}`);
         } catch (error) {
-          console.error("Ошибка сохранения orderId в invoice:", error);
+          console.error("❌ Ошибка подготовки invoice для платежа:", error);
         }
       }
 
@@ -159,6 +165,21 @@ export default factories.createCoreController(
         console.log("✅ Ответ от Tinkoff API:", response.data);
 
         if (response.data.Success) {
+          // Сохраняем PaymentId от Tinkoff в invoice
+          if (invoiceId && response.data.PaymentId) {
+            try {
+              await strapi.documents("api::invoice.invoice").update({
+                documentId: invoiceId,
+                data: { 
+                  paymentId: response.data.PaymentId.toString()
+                },
+              });
+              console.log(`💾 Сохранен PaymentId ${response.data.PaymentId} для invoice ${invoiceId}`);
+            } catch (error) {
+              console.error("❌ Ошибка сохранения PaymentId в invoice:", error);
+            }
+          }
+
           ctx.send({
             paymentUrl: response.data.PaymentURL,
             orderId,
@@ -223,8 +244,8 @@ export default factories.createCoreController(
               documentId: invoice.documentId,
               data: {
                 statusPayment: true,
-                paymentId: PaymentId || null,
                 paymentDate: new Date(),
+                // paymentId уже сохранен при создании платежа - не перезаписываем
               },
             });
 
