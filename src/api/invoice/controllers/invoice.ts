@@ -89,9 +89,8 @@ export default factories.createCoreController(
               statusPayment: false    // Остается false до подтверждения
             },
           });
-          console.log(`📝 Подготовлен invoice ${invoiceId} с orderId: ${orderId}`);
         } catch (error) {
-          console.error("❌ Ошибка подготовки invoice для платежа:", error);
+          console.error("Ошибка подготовки invoice для платежа:", error);
         }
       }
 
@@ -148,13 +147,6 @@ export default factories.createCoreController(
       };
 
       try {
-        console.log("🔄 Отправляем запрос к Tinkoff API:", {
-          orderId,
-          amount: amountInCoins,
-          userEmail,
-          invoiceId,
-          courseId,
-        });
 
         const apiUrl = "https://securepay.tinkoff.ru/v2/Init";
 
@@ -162,7 +154,6 @@ export default factories.createCoreController(
           headers: { "Content-Type": "application/json" },
         });
 
-        console.log("✅ Ответ от Tinkoff API:", response.data);
 
         if (response.data.Success) {
           // Сохраняем PaymentId от Tinkoff в invoice
@@ -174,9 +165,8 @@ export default factories.createCoreController(
                   paymentId: response.data.PaymentId.toString()
                 },
               });
-              console.log(`💾 Сохранен PaymentId ${response.data.PaymentId} для invoice ${invoiceId}`);
             } catch (error) {
-              console.error("❌ Ошибка сохранения PaymentId в invoice:", error);
+              console.error("Ошибка сохранения PaymentId в invoice:", error);
             }
           }
 
@@ -186,12 +176,12 @@ export default factories.createCoreController(
             message: "Ссылка на оплату создана",
           });
         } else {
-          console.error("❌ Ошибка Tinkoff API:", response.data);
+          console.error("Ошибка Tinkoff API:", response.data);
           ctx.throw(400, `Ошибка создания платежа: ${response.data.Message}`);
         }
       } catch (error) {
         console.error(
-          "❌ Ошибка Tinkoff Init:",
+          "Ошибка Tinkoff Init:",
           error.response?.data || error.message
         );
         ctx.throw(500, "Ошибка сервера при создании платежа");
@@ -204,28 +194,10 @@ export default factories.createCoreController(
     async handleTinkoffNotification(ctx) {
       const { OrderId, Success, Status, PaymentId } = ctx.request.body;
 
-      console.log(`🔔 Webhook от Tinkoff:`, {
-        OrderId,
-        Success,
-        Status,
-        PaymentId,
-      });
 
       try {
         if (Success && Status === "CONFIRMED" && OrderId) {
-          console.log(`🔍 Ищем invoice с tinkoffOrderId: ${OrderId}`);
           
-          // Сначала проверим все invoices для отладки
-          const allInvoices = await strapi
-            .documents("api::invoice.invoice")
-            .findMany({});
-          
-          console.log(`📋 Всего invoices в базе: ${allInvoices.length}`);
-          console.log(`📝 Последние 3 invoices:`, allInvoices.slice(-3).map(inv => ({
-            documentId: inv.documentId,
-            tinkoffOrderId: inv.tinkoffOrderId,
-            statusPayment: inv.statusPayment
-          })));
 
           // Ищем invoice по tinkoffOrderId (прямой поиск, без парсинга)
           const invoices = await strapi
@@ -236,7 +208,6 @@ export default factories.createCoreController(
               },
             });
 
-          console.log(`🎯 Найдено invoices с OrderId ${OrderId}: ${invoices.length}`);
 
           if (invoices.length > 0) {
             const invoice = invoices[0];
@@ -249,24 +220,15 @@ export default factories.createCoreController(
               },
             });
 
-            console.log(
-              `✅ Платеж подтвержден для invoice ${invoice.documentId} (OrderId: ${OrderId})`
-            );
             return ctx.send({ status: "ok" });
           } else {
-            console.log(`❌ Invoice с OrderId ${OrderId} не найден`);
             return ctx.send({ status: "Invoice not found" });
           }
         } else {
-          console.log("❌ Платеж не подтвержден:", {
-            Success,
-            Status,
-            OrderId,
-          });
           return ctx.send({ status: "Payment not confirmed" });
         }
       } catch (error) {
-        console.error("❌ Ошибка при обработке уведомления:", error);
+        console.error("Ошибка при обработке уведомления:", error);
         return ctx.throw(500, "Ошибка на сервере при обработке уведомления");
       }
     },
