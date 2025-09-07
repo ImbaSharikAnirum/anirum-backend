@@ -17,27 +17,17 @@
     "direction": {
       "type": "enumeration",
       "required": true,
-      "enum": [
-        "sketching",
-        "drawing2d",
-        "animation",
-        "modeling3d"
-      ]
+      "enum": ["sketching", "drawing2d", "animation", "modeling3d"]
     },
     "status": {
       "type": "enumeration",
       "default": "pending_approval",
-      "enum": [
-        "pending_approval",
-        "approved"
-      ]
+      "enum": ["pending_approval", "approved"]
     },
     "images": {
       "type": "media",
       "multiple": true,
-      "allowedTypes": [
-        "images"
-      ]
+      "allowedTypes": ["images"]
     },
     "startTime": {
       "type": "time",
@@ -120,21 +110,12 @@
     },
     "complexity": {
       "type": "enumeration",
-      "enum": [
-        "beginner",
-        "experienced",
-        "professional"
-      ]
+      "enum": ["beginner", "experienced", "professional"]
     },
     "courseType": {
       "type": "enumeration",
       "required": true,
-      "enum": [
-        "club",
-        "course",
-        "intensive",
-        "individual"
-      ]
+      "enum": ["club", "course", "intensive", "individual"]
     },
     "language": {
       "type": "string"
@@ -163,6 +144,9 @@
       "relation": "oneToMany",
       "target": "api::invoice.invoice",
       "mappedBy": "course"
+    },
+    "urlMessenger": {
+      "type": "string"
     }
   }
 }
