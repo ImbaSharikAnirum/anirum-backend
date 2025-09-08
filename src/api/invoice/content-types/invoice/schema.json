@@ -56,6 +56,10 @@
       "relation": "manyToOne",
       "target": "plugin::users-permissions.user",
       "inversedBy": "invoices"
+    },
+    "attendance": {
+      "type": "json",
+      "default": {}
     }
   }
 }
