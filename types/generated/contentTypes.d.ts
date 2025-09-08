@@ -467,6 +467,7 @@ export interface ApiCourseCourse extends Struct.CollectionTypeSchema {
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    urlMessenger: Schema.Attribute.String;
     weekdays: Schema.Attribute.JSON & Schema.Attribute.Required;
   };
 }
@@ -483,6 +484,7 @@ export interface ApiInvoiceInvoice extends Struct.CollectionTypeSchema {
     draftAndPublish: false;
   };
   attributes: {
+    attendance: Schema.Attribute.JSON & Schema.Attribute.DefaultTo<{}>;
     course: Schema.Attribute.Relation<'manyToOne', 'api::course.course'>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
