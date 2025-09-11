@@ -36,19 +36,13 @@ export default ({ env }) => ({
   },
   email: {
     config: {
-      provider: "nodemailer",
+      provider: "resend",
       providerOptions: {
-        host: env("SMTP_HOST", "smtp.gmail.com"),
-        port: env("SMTP_PORT", 587),
-        auth: {
-          user: env("SMTP_USERNAME"),
-          pass: env("SMTP_PASSWORD"),
-        },
-        // ... any custom nodemailer options
+        apiKey: env("RESEND_API_KEY"),
       },
       settings: {
-        defaultFrom: "hello@example.com",
-        defaultReplyTo: "hello@example.com",
+        defaultFrom: env("EMAIL_DEFAULT_FROM", "noreply@anirum.com"),
+        defaultReplyTo: env("EMAIL_DEFAULT_REPLY_TO", "support@anirum.com"),
       },
     },
   },
