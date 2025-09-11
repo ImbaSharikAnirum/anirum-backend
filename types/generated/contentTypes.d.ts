@@ -485,11 +485,13 @@ export interface ApiInvoiceInvoice extends Struct.CollectionTypeSchema {
   };
   attributes: {
     attendance: Schema.Attribute.JSON & Schema.Attribute.DefaultTo<{}>;
+    bonusesUsed: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
     course: Schema.Attribute.Relation<'manyToOne', 'api::course.course'>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     currency: Schema.Attribute.String & Schema.Attribute.DefaultTo<'RUB'>;
+    discountAmount: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
     endDate: Schema.Attribute.Date;
     family: Schema.Attribute.String;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
@@ -499,6 +501,7 @@ export interface ApiInvoiceInvoice extends Struct.CollectionTypeSchema {
     > &
       Schema.Attribute.Private;
     name: Schema.Attribute.String;
+    originalSum: Schema.Attribute.Integer;
     owner: Schema.Attribute.Relation<
       'manyToOne',
       'plugin::users-permissions.user'
@@ -506,6 +509,14 @@ export interface ApiInvoiceInvoice extends Struct.CollectionTypeSchema {
     paymentDate: Schema.Attribute.DateTime;
     paymentId: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
+    referralCode: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::referral-code.referral-code'
+    >;
+    referrer: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
     startDate: Schema.Attribute.Date;
     statusPayment: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     sum: Schema.Attribute.Integer;
@@ -513,6 +524,101 @@ export interface ApiInvoiceInvoice extends Struct.CollectionTypeSchema {
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+  };
+}
+
+export interface ApiReferralCodeReferralCode
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'referral_codes';
+  info: {
+    description: '\u0421\u0438\u0441\u0442\u0435\u043C\u0430 \u0440\u0435\u0444\u0435\u0440\u0430\u043B\u044C\u043D\u044B\u0445 \u043A\u043E\u0434\u043E\u0432 \u0434\u043B\u044F \u043F\u0440\u0435\u0434\u043E\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u0438\u044F \u0441\u043A\u0438\u0434\u043E\u043A (\u043C\u043E\u0434\u0435\u043B\u044C 10% + 10%)';
+    displayName: 'Referral Code';
+    pluralName: 'referral-codes';
+    singularName: 'referral-code';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    applicableCourses: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::course.course'
+    >;
+    applicableToAll: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<true>;
+    bonusPercentage: Schema.Attribute.Decimal &
+      Schema.Attribute.SetMinMax<
+        {
+          max: 100;
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<10>;
+    code: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 20;
+        minLength: 3;
+      }>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    currentUses: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<0>;
+    description: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 255;
+      }>;
+    discountPercentage: Schema.Attribute.Decimal &
+      Schema.Attribute.SetMinMax<
+        {
+          max: 100;
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<10>;
+    isActive: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::referral-code.referral-code'
+    > &
+      Schema.Attribute.Private;
+    maxUses: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 1;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<100>;
+    minOrderAmount: Schema.Attribute.Decimal &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<0>;
+    publishedAt: Schema.Attribute.DateTime;
+    referrer: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    validFrom: Schema.Attribute.Date;
+    validTo: Schema.Attribute.Date;
   };
 }
 
@@ -1010,6 +1116,14 @@ export interface PluginUsersPermissionsUser
     avatar: Schema.Attribute.Media<'images' | 'files' | 'videos' | 'audios'>;
     birth_date: Schema.Attribute.Date;
     blocked: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
+    bonusBalance: Schema.Attribute.Decimal &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<0>;
     confirmationToken: Schema.Attribute.String & Schema.Attribute.Private;
     confirmed: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     courses: Schema.Attribute.Relation<'oneToMany', 'api::course.course'>;
@@ -1037,6 +1151,10 @@ export interface PluginUsersPermissionsUser
       }>;
     provider: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
+    referralCodes: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::referral-code.referral-code'
+    >;
     resetPasswordToken: Schema.Attribute.String & Schema.Attribute.Private;
     role: Schema.Attribute.Relation<
       'manyToOne',
@@ -1045,6 +1163,22 @@ export interface PluginUsersPermissionsUser
     students: Schema.Attribute.Relation<'oneToMany', 'api::student.student'>;
     telegram_phone: Schema.Attribute.String;
     telegram_username: Schema.Attribute.String;
+    totalEarnedBonuses: Schema.Attribute.Decimal &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<0>;
+    totalSpentBonuses: Schema.Attribute.Decimal &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<0>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1070,6 +1204,7 @@ declare module '@strapi/strapi' {
       'admin::user': AdminUser;
       'api::course.course': ApiCourseCourse;
       'api::invoice.invoice': ApiInvoiceInvoice;
+      'api::referral-code.referral-code': ApiReferralCodeReferralCode;
       'api::student.student': ApiStudentStudent;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;

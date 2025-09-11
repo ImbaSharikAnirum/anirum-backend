@@ -111,6 +111,30 @@
       "relation": "oneToMany",
       "target": "api::invoice.invoice",
       "mappedBy": "owner"
+    },
+    "bonusBalance": {
+      "type": "decimal",
+      "default": 0,
+      "min": 0,
+      "description": "Текущий баланс бонусов пользователя"
+    },
+    "totalEarnedBonuses": {
+      "type": "decimal",
+      "default": 0,
+      "min": 0,
+      "description": "Общая сумма заработанных бонусов"
+    },
+    "totalSpentBonuses": {
+      "type": "decimal",
+      "default": 0,
+      "min": 0,
+      "description": "Общая сумма потраченных бонусов"
+    },
+    "referralCodes": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::referral-code.referral-code",
+      "mappedBy": "referrer"
     }
   }
 }

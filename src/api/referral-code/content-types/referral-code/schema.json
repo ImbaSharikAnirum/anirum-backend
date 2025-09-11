@@ -1,0 +1,79 @@
+{
+  "kind": "collectionType",
+  "collectionName": "referral_codes",
+  "info": {
+    "singularName": "referral-code",
+    "pluralName": "referral-codes",
+    "displayName": "Referral Code",
+    "description": "Система реферальных кодов для предоставления скидок (модель 10% + 10%)"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "code": {
+      "type": "string",
+      "required": true,
+      "unique": true,
+      "minLength": 3,
+      "maxLength": 20
+    },
+    "referrer": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "referralCodes"
+    },
+    "discountPercentage": {
+      "type": "decimal",
+      "default": 10,
+      "min": 0,
+      "max": 100
+    },
+    "bonusPercentage": {
+      "type": "decimal",
+      "default": 10,
+      "min": 0,
+      "max": 100
+    },
+    "maxUses": {
+      "type": "integer",
+      "min": 1,
+      "default": 100
+    },
+    "currentUses": {
+      "type": "integer",
+      "default": 0,
+      "min": 0
+    },
+    "isActive": {
+      "type": "boolean",
+      "default": true
+    },
+    "validFrom": {
+      "type": "date"
+    },
+    "validTo": {
+      "type": "date"
+    },
+    "minOrderAmount": {
+      "type": "decimal",
+      "min": 0,
+      "default": 0
+    },
+    "applicableToAll": {
+      "type": "boolean",
+      "default": true
+    },
+    "applicableCourses": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::course.course"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 255
+    }
+  }
+}

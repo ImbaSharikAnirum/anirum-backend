@@ -60,6 +60,31 @@
     "attendance": {
       "type": "json",
       "default": {}
+    },
+    "originalSum": {
+      "type": "integer",
+      "description": "Сумма до применения скидок"
+    },
+    "referralCode": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::referral-code.referral-code"
+    },
+    "discountAmount": {
+      "type": "integer",
+      "default": 0,
+      "description": "Размер скидки по промокоду"
+    },
+    "bonusesUsed": {
+      "type": "integer",
+      "default": 0,
+      "description": "Использованные бонусы пользователя"
+    },
+    "referrer": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "description": "Реферер который привел клиента"
     }
   }
 }
