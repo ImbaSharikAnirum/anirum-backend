@@ -13,7 +13,7 @@ export default factories.createCoreService('api::referral-code.referral-code', (
       // Находим код по строке
       const referralCodes = await strapi.entityService.findMany('api::referral-code.referral-code', {
         filters: { 
-          code: code,
+          code: { $eqi: code }, // Case insensitive поиск
           isActive: true
         },
         populate: {
@@ -148,24 +148,37 @@ export default factories.createCoreService('api::referral-code.referral-code', (
    */
   async generateReferralCode(userId: string | number, userName: string) {
     try {
-      // Генерируем код на основе имени пользователя + год
-      const year = new Date().getFullYear();
-      let baseCode = `${userName.toUpperCase()}${year}`;
-      let code = baseCode;
-      let counter = 1;
+      // Генерируем код на основе username + случайный код
+      const sanitizedUsername = userName
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '') // Удаляем все кроме букв и цифр
+        .substring(0, 8); // Ограничиваем длину
+
+      let code;
+      let attempts = 0;
+      const maxAttempts = 10;
 
       // Проверяем уникальность кода
-      while (true) {
+      while (attempts < maxAttempts) {
+        // Генерируем 4-символьный случайный код
+        const randomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+        code = `${sanitizedUsername}_${randomCode}`;
+
         const existing = await strapi.entityService.findMany('api::referral-code.referral-code', {
-          filters: { code: code }
+          filters: { code: { $eqi: code } }
         }) as any;
 
         if (!existing || existing.length === 0) {
           break;
         }
 
-        code = `${baseCode}_${counter}`;
-        counter++;
+        attempts++;
+      }
+
+      // Если не удалось найти уникальный код, используем timestamp
+      if (attempts >= maxAttempts) {
+        const timestamp = Date.now().toString().slice(-6);
+        code = `${sanitizedUsername}_${timestamp}`;
       }
 
       // Создаем реферальный код

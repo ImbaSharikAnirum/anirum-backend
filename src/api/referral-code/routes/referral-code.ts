@@ -48,6 +48,6 @@ export const customRoutes = {
           scope: ['find'] // Требует аутентификации  
         }
       }
-    }
+    },
   ]
 };

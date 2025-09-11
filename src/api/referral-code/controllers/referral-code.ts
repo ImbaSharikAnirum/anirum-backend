@@ -76,6 +76,7 @@ export default factories.createCoreController('api::referral-code.referral-code'
     }
   },
 
+
   /**
    * Получение статистики по реферальным кодам пользователя
    * GET /api/referral-codes/stats
