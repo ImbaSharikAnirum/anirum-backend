@@ -62,7 +62,15 @@ export default factories.createCoreController('api::referral-code.referral-code'
 
       // Если кода нет, генерируем новый
       const user = ctx.state.user;
-      const userName = user.name || user.username;
+      
+      // Приоритет: username -> name -> id
+      let userName = user.username;
+      if (!userName && user.name) {
+        userName = user.name;
+      }
+      if (!userName) {
+        userName = `user${user.documentId || user.id}`;
+      }
       
       const newCode = await strapi.service('api::referral-code.referral-code')
         .generateReferralCode(userId, userName);

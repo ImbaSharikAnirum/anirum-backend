@@ -149,10 +149,15 @@ export default factories.createCoreService('api::referral-code.referral-code', (
   async generateReferralCode(userId: string | number, userName: string) {
     try {
       // Генерируем код на основе username + случайный код
-      const sanitizedUsername = userName
+      let sanitizedUsername = userName
         .toUpperCase()
         .replace(/[^A-Z0-9]/g, '') // Удаляем все кроме букв и цифр
         .substring(0, 8); // Ограничиваем длину
+
+      // Если после очистки ничего не осталось, используем USER как fallback
+      if (!sanitizedUsername || sanitizedUsername.length === 0) {
+        sanitizedUsername = 'USER';
+      }
 
       let code;
       let attempts = 0;
