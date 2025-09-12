@@ -199,18 +199,25 @@ export default factories.createCoreController(
         if (Success && Status === "CONFIRMED" && OrderId) {
           
 
-          // Ищем invoice по tinkoffOrderId (прямой поиск, без парсинга)
+          // Ищем invoice по tinkoffOrderId с populate для реферальных полей
           const invoices = await strapi
             .documents("api::invoice.invoice")
             .findMany({
               filters: {
                 tinkoffOrderId: OrderId,
               },
+              populate: {
+                referralCode: true,
+                referrer: true,
+                owner: true
+              }
             });
 
 
           if (invoices.length > 0) {
             const invoice = invoices[0];
+            
+            // Обновляем статус оплаты
             await strapi.documents("api::invoice.invoice").update({
               documentId: invoice.documentId,
               data: {
@@ -219,6 +226,54 @@ export default factories.createCoreController(
                 // paymentId уже сохранен при создании платежа - не перезаписываем
               },
             });
+
+            // Списываем бонусы с баланса пользователя если они были использованы
+            if (invoice.bonusesUsed && invoice.bonusesUsed > 0 && invoice.owner) {
+              try {
+                const userId = invoice.owner.documentId || invoice.owner.id;
+                const user = await strapi.entityService.findOne('plugin::users-permissions.user', userId);
+                
+                if (user) {
+                  await strapi.entityService.update('plugin::users-permissions.user', userId, {
+                    data: {
+                      bonusBalance: Math.max(0, (user.bonusBalance || 0) - invoice.bonusesUsed),
+                      totalSpentBonuses: (user.totalSpentBonuses || 0) + invoice.bonusesUsed
+                    }
+                  });
+                  
+                  console.log(`Bonuses deducted: ${invoice.bonusesUsed}₽ from user ${userId}`);
+                }
+              } catch (error) {
+                console.error('Error deducting bonuses:', error);
+              }
+            }
+
+            // Начисляем бонусы рефереру если есть реферальный код
+            if (invoice.referralCode && invoice.referrer) {
+              try {
+                const originalSum = invoice.originalSum || invoice.sum;
+                const bonusAmount = Math.round(originalSum * 0.1); // 10% от оригинальной суммы
+                
+                const referrerId = invoice.referrer.documentId || invoice.referrer.id;
+                console.log(`[DEBUG] Referrer data:`, {
+                  referrer: invoice.referrer,
+                  referrerId: referrerId,
+                  bonusAmount: bonusAmount
+                });
+                
+                await strapi.service('api::referral-code.referral-code')
+                  .creditReferrerBonus(referrerId, bonusAmount);
+                
+                // Увеличиваем счетчик использований промокода
+                await strapi.service('api::referral-code.referral-code')
+                  .applyReferralCode(invoice.referralCode.documentId || invoice.referralCode.id);
+                
+                console.log(`Referral bonus credited: ${bonusAmount}₽ to referrer ${invoice.referrer}`);
+                
+              } catch (error) {
+                console.error('Error crediting referral bonus:', error);
+              }
+            }
 
             return ctx.send({ status: "ok" });
           } else {
