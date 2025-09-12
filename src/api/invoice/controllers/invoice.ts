@@ -240,8 +240,6 @@ export default factories.createCoreController(
                       totalSpentBonuses: (user.totalSpentBonuses || 0) + invoice.bonusesUsed
                     }
                   });
-                  
-                  console.log(`Bonuses deducted: ${invoice.bonusesUsed}₽ from user ${userId}`);
                 }
               } catch (error) {
                 console.error('Error deducting bonuses:', error);
@@ -255,11 +253,6 @@ export default factories.createCoreController(
                 const bonusAmount = Math.round(originalSum * 0.1); // 10% от оригинальной суммы
                 
                 const referrerId = invoice.referrer.id; // Используем числовой ID для entityService
-                console.log(`[DEBUG] Referrer data:`, {
-                  referrer: invoice.referrer,
-                  referrerId: referrerId,
-                  bonusAmount: bonusAmount
-                });
                 
                 await strapi.service('api::referral-code.referral-code')
                   .creditReferrerBonus(referrerId, bonusAmount);
@@ -268,7 +261,6 @@ export default factories.createCoreController(
                 await strapi.service('api::referral-code.referral-code')
                   .applyReferralCode(invoice.referralCode.id);
                 
-                console.log(`Referral bonus credited: ${bonusAmount}₽ to referrer ${invoice.referrer}`);
                 
               } catch (error) {
                 console.error('Error crediting referral bonus:', error);

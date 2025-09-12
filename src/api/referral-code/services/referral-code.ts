@@ -141,41 +141,22 @@ export default factories.createCoreService('api::referral-code.referral-code', (
    */
   async creditReferrerBonus(referrerId: string | number, bonusAmount: number) {
     try {
-      console.log(`[DEBUG] creditReferrerBonus called with:`, { referrerId, bonusAmount });
-      
       const user = await strapi.entityService.findOne('plugin::users-permissions.user', referrerId);
       
       if (!user) {
-        console.log(`[ERROR] Referrer not found with ID: ${referrerId}`);
         throw new Error(`Referrer not found: ${referrerId}`);
       }
 
-      console.log(`[DEBUG] Found user:`, {
-        id: user.id,
-        documentId: user.documentId,
-        username: user.username,
-        currentBalance: user.bonusBalance || 0,
-        totalEarned: user.totalEarnedBonuses || 0
-      });
-
       // Обновляем баланс бонусов
-      const updatedUser = await strapi.entityService.update('plugin::users-permissions.user', referrerId, {
+      await strapi.entityService.update('plugin::users-permissions.user', referrerId, {
         data: {
           bonusBalance: (user.bonusBalance || 0) + bonusAmount,
           totalEarnedBonuses: (user.totalEarnedBonuses || 0) + bonusAmount
         }
       });
 
-      console.log(`[SUCCESS] Bonus credited:`, {
-        userId: referrerId,
-        bonusAmount: bonusAmount,
-        newBalance: updatedUser.bonusBalance,
-        newTotalEarned: updatedUser.totalEarnedBonuses
-      });
-
       return true;
     } catch (error) {
-      console.error('[ERROR] creditReferrerBonus failed:', error);
       strapi.log.error('Error crediting referrer bonus:', error);
       throw error;
     }
