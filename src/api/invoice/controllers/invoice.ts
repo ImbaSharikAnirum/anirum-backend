@@ -230,7 +230,7 @@ export default factories.createCoreController(
             // Списываем бонусы с баланса пользователя если они были использованы
             if (invoice.bonusesUsed && invoice.bonusesUsed > 0 && invoice.owner) {
               try {
-                const userId = invoice.owner.documentId || invoice.owner.id;
+                const userId = invoice.owner.id; // Используем числовой ID для entityService
                 const user = await strapi.entityService.findOne('plugin::users-permissions.user', userId);
                 
                 if (user) {
@@ -254,7 +254,7 @@ export default factories.createCoreController(
                 const originalSum = invoice.originalSum || invoice.sum;
                 const bonusAmount = Math.round(originalSum * 0.1); // 10% от оригинальной суммы
                 
-                const referrerId = invoice.referrer.documentId || invoice.referrer.id;
+                const referrerId = invoice.referrer.id; // Используем числовой ID для entityService
                 console.log(`[DEBUG] Referrer data:`, {
                   referrer: invoice.referrer,
                   referrerId: referrerId,
@@ -266,7 +266,7 @@ export default factories.createCoreController(
                 
                 // Увеличиваем счетчик использований промокода
                 await strapi.service('api::referral-code.referral-code')
-                  .applyReferralCode(invoice.referralCode.documentId || invoice.referralCode.id);
+                  .applyReferralCode(invoice.referralCode.id);
                 
                 console.log(`Referral bonus credited: ${bonusAmount}₽ to referrer ${invoice.referrer}`);
                 
