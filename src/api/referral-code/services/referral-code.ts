@@ -43,7 +43,9 @@ export default factories.createCoreService('api::referral-code.referral-code', (
       if (userId) {
         const existingInvoices = await strapi.entityService.findMany('api::invoice.invoice', {
           filters: {
-            owner: userId,
+            owner: { 
+              $eq: userId 
+            },
             statusPayment: true // только оплаченные курсы
           }
         }) as any;
