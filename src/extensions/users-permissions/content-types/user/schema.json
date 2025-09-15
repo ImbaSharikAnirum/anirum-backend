@@ -69,12 +69,7 @@
       "type": "media",
       "multiple": false,
       "required": false,
-      "allowedTypes": [
-        "images",
-        "files",
-        "videos",
-        "audios"
-      ]
+      "allowedTypes": ["images", "files", "videos", "audios"]
     },
     "courses": {
       "type": "relation",
@@ -137,10 +132,10 @@
       "mappedBy": "referrer"
     },
     "pinterestAccessToken": {
-      "type": "string"
+      "type": "text"
     },
     "pinterestRefreshToken": {
-      "type": "string"
+      "type": "text"
     }
   }
 }
