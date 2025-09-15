@@ -135,6 +135,12 @@
       "relation": "oneToMany",
       "target": "api::referral-code.referral-code",
       "mappedBy": "referrer"
+    },
+    "pinterestAccessToken": {
+      "type": "string"
+    },
+    "pinterestRefreshToken": {
+      "type": "string"
     }
   }
 }
