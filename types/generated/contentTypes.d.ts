@@ -1149,6 +1149,8 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
+    pinterestAccessToken: Schema.Attribute.String;
+    pinterestRefreshToken: Schema.Attribute.String;
     provider: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     referralCodes: Schema.Attribute.Relation<

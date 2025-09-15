@@ -1,37 +1,35 @@
 /**
- * Pinterest OAuth роуты
+ * Pinterest custom routes
  */
 
-export default {
+module.exports = {
   routes: [
     {
-      method: 'POST',
-      path: '/pinterest/auth',
-      handler: 'api::pinterest.pinterest.authenticate',
+      method: "POST",
+      path: "/pinterest/auth",
+      handler: "pinterest.authenticate",
       config: {
         auth: false,
-        policies: [],
-        middlewares: [],
       },
     },
     {
-      method: 'GET',
-      path: '/pinterest/status',
-      handler: 'api::pinterest.pinterest.getConnectionStatus',
+      method: "GET",
+      path: "/pinterest/status",
+      handler: "pinterest.getConnectionStatus",
       config: {
-        auth: true,
-        policies: [],
-        middlewares: [],
+        auth: {
+          scope: ['api::pinterest.status']
+        },
       },
     },
     {
-      method: 'POST',
-      path: '/pinterest/disconnect',
-      handler: 'api::pinterest.pinterest.disconnect',
+      method: "POST",
+      path: "/pinterest/disconnect",
+      handler: "pinterest.disconnect",
       config: {
-        auth: true,
-        policies: [],
-        middlewares: [],
+        auth: {
+          scope: ['api::pinterest.disconnect']
+        },
       },
     },
   ],
