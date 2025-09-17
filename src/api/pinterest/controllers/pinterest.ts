@@ -68,25 +68,15 @@ module.exports = {
   },
 
   async getConnectionStatus(ctx) {
-    console.log('🎨 [Backend] Pinterest status check started');
-    console.log('🎨 [Backend] ctx.state.user:', ctx.state.user);
-    console.log('🎨 [Backend] Authorization header:', ctx.request.header.authorization);
-
     const userId = ctx.state.user?.documentId;
-    console.log('🎨 [Backend] userId:', userId);
 
     if (!userId) {
-      console.log('🎨 [Backend] No userId found, returning unauthorized');
       return ctx.unauthorized("Необходима авторизация");
     }
 
     try {
-      const user = (await strapi
-        .documents("plugin::users-permissions.user")
-        .findOne({
-          documentId: userId,
-        })) as any;
-
+      // Используем уже загруженного пользователя из ctx.state.user
+      const user = ctx.state.user;
       const isConnected = !!user?.pinterestAccessToken;
 
       return ctx.send({
