@@ -19,7 +19,7 @@ export default {
       path: "/pinterest/status",
       handler: "pinterest.getConnectionStatus",
       config: {
-        auth: false,
+        auth: true,
         policies: [],
         middlewares: [],
       },
@@ -29,7 +29,7 @@ export default {
       path: "/pinterest/disconnect",
       handler: "pinterest.disconnect",
       config: {
-        auth: false,
+        auth: true,
         policies: [],
         middlewares: [],
       },
