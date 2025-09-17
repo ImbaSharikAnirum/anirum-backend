@@ -2,7 +2,7 @@
  * Pinterest custom routes
  */
 
-module.exports = {
+export default {
   routes: [
     {
       method: "POST",
@@ -10,6 +10,8 @@ module.exports = {
       handler: "pinterest.authenticate",
       config: {
         auth: false,
+        policies: [],
+        middlewares: [],
       },
     },
     {
@@ -17,9 +19,9 @@ module.exports = {
       path: "/pinterest/status",
       handler: "pinterest.getConnectionStatus",
       config: {
-        auth: {
-          scope: ['api::pinterest.status']
-        }
+        auth: false,
+        policies: [],
+        middlewares: [],
       },
     },
     {
@@ -27,9 +29,9 @@ module.exports = {
       path: "/pinterest/disconnect",
       handler: "pinterest.disconnect",
       config: {
-        auth: {
-          scope: ['api::pinterest.disconnect']
-        }
+        auth: false,
+        policies: [],
+        middlewares: [],
       },
     },
   ],
