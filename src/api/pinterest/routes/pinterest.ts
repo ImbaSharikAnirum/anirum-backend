@@ -17,9 +17,7 @@ module.exports = {
       path: "/pinterest/status",
       handler: "pinterest.getConnectionStatus",
       config: {
-        auth: {
-          scope: ['api::pinterest.status']
-        },
+        auth: true,  // Просто требуем авторизацию без специального scope
       },
     },
     {
@@ -27,9 +25,7 @@ module.exports = {
       path: "/pinterest/disconnect",
       handler: "pinterest.disconnect",
       config: {
-        auth: {
-          scope: ['api::pinterest.disconnect']
-        },
+        auth: true,  // Просто требуем авторизацию без специального scope
       },
     },
   ],
