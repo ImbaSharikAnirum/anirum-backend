@@ -117,9 +117,14 @@ module.exports = {
 
   async getPins(ctx) {
     const user = ctx.state.user;
+
+    console.log("Pinterest getPins - User:", user?.documentId);
+    console.log("Pinterest getPins - Has token:", !!user?.pinterestAccessToken);
+
     const token = user?.pinterestAccessToken;
 
     if (!token) {
+      console.log("Pinterest getPins - No token found");
       return ctx.unauthorized("Pinterest не подключен");
     }
 
@@ -132,6 +137,9 @@ module.exports = {
         bookmark ? `&bookmark=${bookmark}` : ""
       }`;
 
+      console.log("Pinterest API URL:", url);
+      console.log("Pinterest token (first 10 chars):", token.substring(0, 10) + "...");
+
       const response = await fetch(url, {
         method: "GET",
         headers: {
@@ -141,8 +149,12 @@ module.exports = {
         },
       });
 
+      console.log("Pinterest API response status:", response.status);
+
       if (!response.ok) {
-        throw new Error(`Pinterest API error: ${response.statusText}`);
+        const errorText = await response.text();
+        console.log("Pinterest API error response:", errorText);
+        throw new Error(`Pinterest API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const data = await response.json() as any;
