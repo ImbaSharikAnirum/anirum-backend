@@ -136,6 +136,18 @@
     },
     "pinterestRefreshToken": {
       "type": "text"
+    },
+    "guides": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::guide.guide",
+      "mappedBy": "users_permissions_user"
+    },
+    "savedGuides": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::guide.guide",
+      "mappedBy": "savedBy"
     }
   }
 }

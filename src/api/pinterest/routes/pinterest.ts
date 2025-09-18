@@ -24,5 +24,15 @@ export default {
       path: "/pinterest/disconnect",
       handler: "pinterest.disconnect",
     },
+    {
+      method: "GET",
+      path: "/pinterest/pins",
+      handler: "pinterest.getPins",
+    },
+    {
+      method: "POST",
+      path: "/pinterest/save-pin-as-guide",
+      handler: "pinterest.savePinAsGuide",
+    },
   ],
 };

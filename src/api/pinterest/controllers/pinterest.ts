@@ -114,4 +114,161 @@ module.exports = {
       return ctx.throw(500, "Ошибка при отключении Pinterest");
     }
   },
+
+  async getPins(ctx) {
+    const user = ctx.state.user;
+    const token = user?.pinterestAccessToken;
+
+    if (!token) {
+      return ctx.unauthorized("Pinterest не подключен");
+    }
+
+    try {
+      // Получаем параметры пагинации из query
+      const pageSize = parseInt(ctx.query.page_size) || 50;
+      const bookmark = ctx.query.bookmark || "";
+
+      const url = `https://api.pinterest.com/v5/pins?page_size=${pageSize}${
+        bookmark ? `&bookmark=${bookmark}` : ""
+      }`;
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Pinterest API error: ${response.statusText}`);
+      }
+
+      const data = await response.json() as any;
+
+      // Получаем сохраненные пины из гайдов для проверки isSaved
+      const guides = await strapi.documents("api::guide.guide").findMany({
+        filters: {
+          users_permissions_user: { documentId: user.documentId },
+          link: { $contains: "https://www.pinterest.com/pin/" },
+        } as any,
+        fields: ["id", "link"],
+        pagination: false,
+      });
+
+      // Добавляем флаг isSaved для каждого пина
+      const pinsWithSaved = data.items.map((pin: any) => {
+        const pinLink = `https://www.pinterest.com/pin/${pin.id}/`;
+        const isSaved = guides.some((guide: any) => guide.link === pinLink);
+        return { ...pin, isSaved };
+      });
+
+      return ctx.send({
+        items: pinsWithSaved,
+        bookmark: data.bookmark || null,
+        total: data.total || pinsWithSaved.length,
+      });
+    } catch (error) {
+      console.error("Ошибка при получении пинов:", error);
+
+      if (error.message.includes("401") || error.message.includes("Unauthorized")) {
+        return ctx.unauthorized("Токен Pinterest недействителен");
+      }
+
+      return ctx.throw(500, "Ошибка при получении пинов", {
+        error: error.message,
+      });
+    }
+  },
+
+  async savePinAsGuide(ctx) {
+    const user = ctx.state.user;
+
+    if (!user) {
+      return ctx.unauthorized("Необходима авторизация");
+    }
+
+    try {
+      const {
+        imageUrl,
+        title,
+        text = "",
+        link,
+        tags = [],
+        approved = false,
+      } = ctx.request.body;
+
+      // Валидация данных
+      if (!imageUrl || !title || !link) {
+        return ctx.badRequest("Требуются imageUrl, title и link");
+      }
+
+      // Проверяем, не сохранен ли уже этот пин
+      const existingGuide = await strapi.documents("api::guide.guide").findFirst({
+        filters: {
+          users_permissions_user: { documentId: user.documentId },
+          link: link,
+        } as any,
+      });
+
+      if (existingGuide) {
+        return ctx.badRequest("Этот пин уже сохранен как гайд");
+      }
+
+      // Загружаем изображение с Pinterest
+      const imageResponse = await fetch(imageUrl);
+      if (!imageResponse.ok) {
+        throw new Error("Не удалось загрузить изображение");
+      }
+
+      const imageBuffer = await imageResponse.arrayBuffer();
+      const buffer = Buffer.from(imageBuffer);
+
+      // Определяем тип файла и имя
+      const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+      const extension = contentType.split('/')[1] || 'jpg';
+      const fileName = `pinterest-pin-${Date.now()}.${extension}`;
+
+      // Загружаем файл в Strapi
+      const uploadedFile = await strapi.plugins.upload.services.upload.upload({
+        data: {
+          ref: "api::guide.guide",
+          refId: null,
+          field: "image",
+        },
+        files: {
+          name: fileName,
+          type: contentType,
+          size: buffer.length,
+          buffer: buffer,
+        },
+      });
+
+      // Создаем гайд
+      const newGuide = await strapi.documents("api::guide.guide").create({
+        data: {
+          title,
+          text,
+          link,
+          tags: Array.isArray(tags) ? tags : [],
+          approved,
+          image: uploadedFile[0]?.documentId,
+          users_permissions_user: { documentId: user.documentId },
+        } as any,
+        populate: ["image"],
+      });
+
+      return ctx.send({
+        success: true,
+        guide: newGuide,
+        message: "Пин сохранен как гайд",
+      });
+    } catch (error) {
+      console.error("Ошибка сохранения пина как гайда:", error);
+      return ctx.throw(500, "Ошибка при сохранении пина", {
+        error: error.message,
+      });
+    }
+  },
 };

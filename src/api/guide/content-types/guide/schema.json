@@ -1,0 +1,59 @@
+{
+  "kind": "collectionType",
+  "collectionName": "guides",
+  "info": {
+    "singularName": "guide",
+    "pluralName": "guides",
+    "displayName": "Guide",
+    "description": "Гайды пользователей с изображениями и ссылками"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "text": {
+      "type": "text"
+    },
+    "image": {
+      "type": "media",
+      "multiple": false,
+      "required": false,
+      "allowedTypes": [
+        "images"
+      ]
+    },
+    "link": {
+      "type": "string"
+    },
+    "users_permissions_user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "guides"
+    },
+    "approved": {
+      "type": "boolean",
+      "default": false
+    },
+    "savedBy": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "savedGuides"
+    },
+    "tags": {
+      "type": "json"
+    },
+    "createdAt": {
+      "type": "datetime"
+    },
+    "updatedAt": {
+      "type": "datetime"
+    }
+  }
+}

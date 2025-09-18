@@ -472,6 +472,45 @@ export interface ApiCourseCourse extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiGuideGuide extends Struct.CollectionTypeSchema {
+  collectionName: 'guides';
+  info: {
+    description: '\u0413\u0430\u0439\u0434\u044B \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u0435\u0439 \u0441 \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F\u043C\u0438 \u0438 \u0441\u0441\u044B\u043B\u043A\u0430\u043C\u0438';
+    displayName: 'Guide';
+    pluralName: 'guides';
+    singularName: 'guide';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    approved: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    image: Schema.Attribute.Media<'images'>;
+    link: Schema.Attribute.String;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<'oneToMany', 'api::guide.guide'> &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    savedBy: Schema.Attribute.Relation<
+      'manyToMany',
+      'plugin::users-permissions.user'
+    >;
+    tags: Schema.Attribute.JSON;
+    text: Schema.Attribute.Text;
+    title: Schema.Attribute.String & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    users_permissions_user: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
+  };
+}
+
 export interface ApiInvoiceInvoice extends Struct.CollectionTypeSchema {
   collectionName: 'invoices';
   info: {
@@ -1136,6 +1175,7 @@ export interface PluginUsersPermissionsUser
         minLength: 6;
       }>;
     family: Schema.Attribute.String;
+    guides: Schema.Attribute.Relation<'oneToMany', 'api::guide.guide'>;
     invoices: Schema.Attribute.Relation<'oneToMany', 'api::invoice.invoice'>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
@@ -1162,6 +1202,7 @@ export interface PluginUsersPermissionsUser
       'manyToOne',
       'plugin::users-permissions.role'
     >;
+    savedGuides: Schema.Attribute.Relation<'manyToMany', 'api::guide.guide'>;
     students: Schema.Attribute.Relation<'oneToMany', 'api::student.student'>;
     telegram_phone: Schema.Attribute.String;
     telegram_username: Schema.Attribute.String;
@@ -1205,6 +1246,7 @@ declare module '@strapi/strapi' {
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
       'api::course.course': ApiCourseCourse;
+      'api::guide.guide': ApiGuideGuide;
       'api::invoice.invoice': ApiInvoiceInvoice;
       'api::referral-code.referral-code': ApiReferralCodeReferralCode;
       'api::student.student': ApiStudentStudent;
