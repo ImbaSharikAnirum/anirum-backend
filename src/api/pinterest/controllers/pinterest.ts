@@ -206,6 +206,8 @@ module.exports = {
     }
 
     try {
+      console.log("ctx.request.body:", ctx.request.body);
+
       const {
         imageUrl,
         title,
