@@ -173,11 +173,11 @@ module.exports = {
         pagination: false,
       });
 
-      // Добавляем флаг isSaved для каждого пина
+      // Добавляем флаг isSaved и link для каждого пина
       const pinsWithSaved = data.items.map((pin: any) => {
         const pinLink = `https://www.pinterest.com/pin/${pin.id}/`;
         const isSaved = guides.some((guide: any) => guide.link === pinLink);
-        return { ...pin, isSaved };
+        return { ...pin, link: pinLink, isSaved };
       });
 
       return ctx.send({
