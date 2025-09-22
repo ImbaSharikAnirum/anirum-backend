@@ -4,6 +4,7 @@
 
 import axios from "axios";
 import querystring from "querystring";
+import { generateTagsFromImage } from "../../../utils";
 
 module.exports = {
   async authenticate(ctx) {
@@ -257,13 +258,13 @@ module.exports = {
         },
       });
 
-      // Создаем гайд
+      // 1. Создаем гайд БЕЗ тегов (как в предыдущем проекте)
       const newGuide = await strapi.documents("api::guide.guide").create({
         data: {
           title,
           text,
           link,
-          tags: Array.isArray(tags) ? tags : [],
+          tags: [], // Сначала пустые теги
           approved,
           image: uploadedFile[0]?.documentId,
           users_permissions_user: { documentId: user.documentId },
@@ -271,9 +272,42 @@ module.exports = {
         populate: ["image"],
       });
 
+      // 2. Генерируем теги только по изображению
+      let generatedTags = [];
+
+      try {
+        // Теги по изображению (используем URL загруженного файла)
+        const generatedImageUrl =
+          newGuide?.image?.formats?.thumbnail?.url ||
+          newGuide?.image?.formats?.small?.url ||
+          newGuide?.image?.formats?.medium?.url ||
+          newGuide?.image?.url;
+
+        if (generatedImageUrl) {
+          console.log(`Генерация тегов по изображению: ${generatedImageUrl}`);
+          generatedTags = await generateTagsFromImage(generatedImageUrl);
+          console.log(`Сгенерированы теги по изображению: ${generatedTags.join(', ')}`);
+        }
+      } catch (tagError) {
+        console.error("Ошибка генерации тегов (продолжаем без автотегов):", tagError);
+      }
+
+      // 3. Объединяем переданные теги с автогенерированными из изображения
+      const manualTags = Array.isArray(tags) ? tags : [];
+      const combinedTags = [...new Set([...manualTags, ...generatedTags])];
+
+      console.log(`Итоговые теги для пина "${title}": ${combinedTags.join(', ')} (всего: ${combinedTags.length})`);
+
+      // 4. Обновляем гайд с объединёнными тегами
+      const updatedGuide = await strapi.documents("api::guide.guide").update({
+        documentId: newGuide.documentId,
+        data: { tags: combinedTags } as any,
+        populate: ["image"],
+      });
+
       return ctx.send({
         success: true,
-        guide: newGuide,
+        guide: updatedGuide, // Возвращаем гайд с тегами
         message: "Пин сохранен как гайд",
       });
     } catch (error) {

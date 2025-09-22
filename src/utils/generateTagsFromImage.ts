@@ -15,16 +15,7 @@ export async function generateTagsFromImage(imageUrl: string): Promise<string[]>
       messages: [
         {
           role: "system",
-          content: `You are an assistant for a drawing tutorial platform. Analyze an image from a tutorial and return 5 to 10 lowercase English tags that clearly describe what is being drawn or demonstrated.
-
-Tags should represent:
-- Objects (e.g. 'hands', 'head', 'eyes', 'face')
-- Concepts (e.g. 'perspective', 'volume', 'anatomy')
-- Techniques (e.g. 'shading', 'construction', 'sketching')
-
-Do not include vague or generic terms like 'art', 'drawing', 'illustration', or words about how the tutorial is presented, such as 'step-by-step', 'guide', or 'diagram'.
-
-Reply with only a comma-separated list of useful tags.`,
+          content: `You are an assistant for a drawing tutorial platform. Analyze an image from a tutorial and return 5 to 10 lowercase English tags that clearly describe what is being drawn or demonstrated. Tags should represent objects (e.g. 'hands', 'head'), concepts (e.g. 'perspective', 'volume'), or techniques (e.g. 'shading', 'construction'). Do not include vague or generic terms like 'art', 'drawing', 'illustration', or words about how the tutorial is presented, such as 'step-by-step', 'guide', or 'diagram'. Reply with only a comma-separated list of useful tags.`,
         },
         {
           role: "user",
