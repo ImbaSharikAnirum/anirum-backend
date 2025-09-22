@@ -25,7 +25,7 @@ export async function generateTagsFromImage(imageUrl: string): Promise<string[]>
           ],
         },
       ],
-      max_tokens: 100,
+      max_completion_tokens: 100,
     });
 
     const tagString = response.choices[0].message.content?.trim() || "";
