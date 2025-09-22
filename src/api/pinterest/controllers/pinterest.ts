@@ -217,9 +217,9 @@ module.exports = {
         approved = false,
       } = ctx.request.body;
 
-      // Валидация данных
-      if (!imageUrl || !title || !link) {
-        return ctx.badRequest("Требуются imageUrl, title и link");
+      // Валидация данных (только imageUrl обязательно)
+      if (!imageUrl) {
+        return ctx.badRequest("Требуется imageUrl");
       }
 
       // Проверяем, не сохранен ли уже этот пин
@@ -276,9 +276,9 @@ module.exports = {
       // 1. Создаем гайд БЕЗ тегов (как в предыдущем проекте)
       const newGuide = await strapi.documents("api::guide.guide").create({
         data: {
-          title,
-          text,
-          link,
+          title: title || "Pinterest Pin", // Дефолтный заголовок
+          text: text || "",
+          link: link || null, // link опционально
           tags: [], // Сначала пустые теги
           approved,
           image: uploadedFile[0]?.documentId,
