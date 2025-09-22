@@ -5,6 +5,9 @@
 import axios from "axios";
 import querystring from "querystring";
 import { generateTagsFromImage } from "../../../utils";
+import fs from "fs";
+import os from "os";
+import path from "path";
 
 module.exports = {
   async authenticate(ctx) {
@@ -229,34 +232,44 @@ module.exports = {
         return ctx.badRequest("Этот пин уже сохранен как гайд");
       }
 
-      // Загружаем изображение с Pinterest
-      const imageResponse = await fetch(imageUrl);
-      if (!imageResponse.ok) {
-        throw new Error("Не удалось загрузить изображение");
-      }
+      // Загружаем изображение с Pinterest (точная копия рабочего кода)
+      const response = await axios.get(imageUrl, {
+        responseType: "arraybuffer",
+      });
 
-      const imageBuffer = await imageResponse.arrayBuffer();
-      const buffer = Buffer.from(imageBuffer);
-
-      // Определяем тип файла и имя
-      const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+      const buffer = Buffer.from(response.data, "binary");
+      const contentType = response.headers["content-type"] || 'image/jpeg';
       const extension = contentType.split('/')[1] || 'jpg';
       const fileName = `pinterest-pin-${Date.now()}.${extension}`;
 
-      // Загружаем файл в Strapi
+      // Создаём временный файл (как в предыдущем проекте)
+      const tmpFilePath = path.join(os.tmpdir(), fileName);
+      fs.writeFileSync(tmpFilePath, buffer);
+
+      console.log(`Создан временный файл: ${tmpFilePath}, размер: ${buffer.length} байт`);
+
+      // Загружаем файл в Strapi 5 (обновлённый API)
       const uploadedFile = await strapi.plugins.upload.services.upload.upload({
         data: {
           ref: "api::guide.guide",
           refId: null,
           field: "image",
         },
-        files: {
+        files: [{
           name: fileName,
           type: contentType,
           size: buffer.length,
-          buffer: buffer,
-        },
+          path: tmpFilePath,
+        }],
       });
+
+      // Удаляем временный файл
+      try {
+        fs.unlinkSync(tmpFilePath);
+        console.log(`Временный файл удалён: ${tmpFilePath}`);
+      } catch (cleanupError) {
+        console.warn("Не удалось удалить временный файл:", cleanupError);
+      }
 
       // 1. Создаем гайд БЕЗ тегов (как в предыдущем проекте)
       const newGuide = await strapi.documents("api::guide.guide").create({
