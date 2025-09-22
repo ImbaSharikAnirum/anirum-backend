@@ -5,9 +5,6 @@
 import axios from "axios";
 import querystring from "querystring";
 import { generateTagsFromImage } from "../../../utils";
-import fs from "fs";
-import os from "os";
-import path from "path";
 
 module.exports = {
   async authenticate(ctx) {
@@ -244,34 +241,13 @@ module.exports = {
       const extension = contentType.split('/')[1] || 'jpg';
       const fileName = `pinterest-pin-${Date.now()}.${extension}`;
 
-      // Создаём временный файл (как в предыдущем проекте)
-      const tmpFilePath = path.join(os.tmpdir(), fileName);
-      fs.writeFileSync(tmpFilePath, buffer);
+      console.log(`Загружаем buffer напрямую, размер: ${buffer.length} байт`);
 
-      console.log(`Создан временный файл: ${tmpFilePath}, размер: ${buffer.length} байт`);
-
-      // Загружаем файл в Strapi 5 (обновлённый API)
+      // Загружаем файл в Strapi 5 напрямую из buffer (без временного файла)
       const uploadedFile = await strapi.plugins.upload.services.upload.upload({
-        data: {
-          ref: "api::guide.guide",
-          refId: null,
-          field: "image",
-        },
-        files: [{
-          name: fileName,
-          type: contentType,
-          size: buffer.length,
-          path: tmpFilePath,
-        }],
+        data: {},
+        files: buffer, // Buffer напрямую
       });
-
-      // Удаляем временный файл
-      try {
-        fs.unlinkSync(tmpFilePath);
-        console.log(`Временный файл удалён: ${tmpFilePath}`);
-      } catch (cleanupError) {
-        console.warn("Не удалось удалить временный файл:", cleanupError);
-      }
 
       // 1. Создаем гайд БЕЗ тегов (как в предыдущем проекте)
       const newGuide = await strapi.documents("api::guide.guide").create({
