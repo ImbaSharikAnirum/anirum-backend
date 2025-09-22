@@ -2,7 +2,6 @@
  * pinterest controller
  */
 
-import axios from "axios";
 import querystring from "querystring";
 import { generateTagsFromImage } from "../../../utils";
 
@@ -206,7 +205,7 @@ module.exports = {
       console.log("ctx.request.body:", ctx.request.body);
 
       const {
-        imageUrl,
+        imageId, // ← Теперь ожидаем готовый imageId вместо imageUrl
         title,
         text = "",
         link,
@@ -214,9 +213,9 @@ module.exports = {
         approved = false,
       } = ctx.request.body;
 
-      // Валидация данных (только imageUrl обязательно)
-      if (!imageUrl) {
-        return ctx.badRequest("Требуется imageUrl");
+      // Валидация данных (imageId обязательно)
+      if (!imageId) {
+        return ctx.badRequest("Требуется imageId");
       }
 
       // Проверяем, не сохранен ли уже этот пин
@@ -231,23 +230,7 @@ module.exports = {
         return ctx.badRequest("Этот пин уже сохранен как гайд");
       }
 
-      // Загружаем изображение с Pinterest (точная копия рабочего кода)
-      const response = await axios.get(imageUrl, {
-        responseType: "arraybuffer",
-      });
-
-      const buffer = Buffer.from(response.data, "binary");
-      const contentType = response.headers["content-type"] || 'image/jpeg';
-      const extension = contentType.split('/')[1] || 'jpg';
-      const fileName = `pinterest-pin-${Date.now()}.${extension}`;
-
-      console.log(`Загружаем buffer напрямую, размер: ${buffer.length} байт`);
-
-      // Загружаем файл в Strapi 5 напрямую из buffer (без временного файла)
-      const uploadedFile = await strapi.plugins.upload.services.upload.upload({
-        data: {},
-        files: buffer, // Buffer напрямую
-      });
+      // Изображение уже загружено на фронте, используем переданный imageId
 
       // 1. Создаем гайд БЕЗ тегов (как в предыдущем проекте)
       const newGuide = await strapi.documents("api::guide.guide").create({
@@ -257,7 +240,7 @@ module.exports = {
           link: link || null, // link опционально
           tags: [], // Сначала пустые теги
           approved,
-          image: uploadedFile[0]?.documentId,
+          image: imageId,
           users_permissions_user: { documentId: user.documentId },
         } as any,
         populate: ["image"],
