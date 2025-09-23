@@ -251,12 +251,8 @@ module.exports = {
       let generatedTags = [];
 
       try {
-        // Теги по изображению (используем URL загруженного файла)
-        const generatedImageUrl =
-          newGuide?.image?.formats?.thumbnail?.url ||
-          newGuide?.image?.formats?.small?.url ||
-          newGuide?.image?.formats?.medium?.url ||
-          newGuide?.image?.url;
+        // Теги по изображению (используем оригинальное изображение для лучшего качества)
+        const generatedImageUrl = newGuide?.image?.url;
 
         if (generatedImageUrl) {
           console.log(`Генерация тегов по изображению: ${generatedImageUrl}`);
