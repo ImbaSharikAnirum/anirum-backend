@@ -10,6 +10,8 @@ const openai = new OpenAI({
  */
 export async function generateTagsFromImage(imageUrl: string): Promise<string[]> {
   try {
+    console.log("🚀 Начало генерации тегов для URL:", imageUrl);
+
     const response = await openai.chat.completions.create({
       model: "gpt-5-nano",
       messages: [
@@ -28,7 +30,11 @@ export async function generateTagsFromImage(imageUrl: string): Promise<string[]>
       max_completion_tokens: 100,
     });
 
+    console.log("✅ OpenAI API ответил успешно");
+    console.log("📊 Usage:", response.usage);
+
     const tagString = response.choices[0].message.content?.trim() || "";
+    console.log("📝 Сырой ответ от OpenAI:", tagString);
 
     // Преобразуем "eyes, drawing, anatomy" → ["eyes", "drawing", "anatomy"]
     const tags = tagString
@@ -37,11 +43,14 @@ export async function generateTagsFromImage(imageUrl: string): Promise<string[]>
       .filter((t) => t.length > 0 && t.length < 30); // фильтруем слишком длинные теги
 
     console.log(`Generated ${tags.length} tags from image:`, tags);
-    // console.log("Token usage:", response.usage);
 
     return tags;
   } catch (err) {
-    console.error("Ошибка при генерации тегов по изображению:", err);
+    console.error("❌ Детальная ошибка при генерации тегов:");
+    console.error("Error name:", err.name);
+    console.error("Error message:", err.message);
+    console.error("Error code:", err.code);
+    console.error("Full error:", err);
     return [];
   }
 }
