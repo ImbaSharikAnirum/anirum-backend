@@ -11,7 +11,7 @@ const openai = new OpenAI({
 export async function generateTagsFromImage(imageUrl: string): Promise<string[]> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5-nano-2025-08-07",
+      model: "gpt-5-nano",
       messages: [
         {
           role: "system",
