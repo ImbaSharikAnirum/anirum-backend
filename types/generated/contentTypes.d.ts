@@ -1205,6 +1205,8 @@ export interface PluginUsersPermissionsUser
     savedGuides: Schema.Attribute.Relation<'manyToMany', 'api::guide.guide'>;
     students: Schema.Attribute.Relation<'oneToMany', 'api::student.student'>;
     telegram_phone: Schema.Attribute.String;
+    telegram_phone_verified: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<false>;
     telegram_username: Schema.Attribute.String;
     totalEarnedBonuses: Schema.Attribute.Decimal &
       Schema.Attribute.SetMinMax<
@@ -1232,6 +1234,8 @@ export interface PluginUsersPermissionsUser
         minLength: 3;
       }>;
     whatsapp_phone: Schema.Attribute.String;
+    whatsapp_phone_verified: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<false>;
   };
 }
 
