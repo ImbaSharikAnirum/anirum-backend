@@ -255,9 +255,7 @@ module.exports = {
         const generatedImageUrl = newGuide?.image?.url;
 
         if (generatedImageUrl) {
-          console.log(`Генерация тегов по изображению: ${generatedImageUrl}`);
           generatedTags = await generateTagsFromImage(generatedImageUrl);
-          console.log(`Сгенерированы теги по изображению: ${generatedTags.join(', ')}`);
         }
       } catch (tagError) {
         console.error("Ошибка генерации тегов (продолжаем без автотегов):", tagError);
@@ -267,7 +265,6 @@ module.exports = {
       const manualTags = Array.isArray(tags) ? tags : [];
       const combinedTags = [...new Set([...manualTags, ...generatedTags])];
 
-      console.log(`Итоговые теги для пина "${title}": ${combinedTags.join(', ')} (всего: ${combinedTags.length})`);
 
       // 4. Обновляем гайд с объединёнными тегами
       const updatedGuide = await strapi.documents("api::guide.guide").update({
