@@ -93,14 +93,10 @@
       "type": "string"
     },
     "whatsapp_phone_verified": {
-      "type": "boolean",
-      "default": false,
-      "description": "Подтвержден ли номер WhatsApp"
+      "type": "boolean"
     },
     "telegram_phone_verified": {
-      "type": "boolean",
-      "default": false,
-      "description": "Подтвержден ли номер Telegram"
+      "type": "boolean"
     },
     "birth_date": {
       "type": "date"
