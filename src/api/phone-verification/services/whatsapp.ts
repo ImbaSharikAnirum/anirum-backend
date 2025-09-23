@@ -45,11 +45,20 @@ export default {
     try {
       const config = this.getGreenApiConfig();
 
-      // Нормализуем номер телефона
-      const normalizedPhone = phone.replace(/[^\d+]/g, '');
+      // Нормализуем номер телефона для Green API
+      // Убираем все кроме цифр (включая +)
+      let normalizedPhone = phone.replace(/[^\d]/g, '');
+
+      // Для российских номеров убеждаемся что начинается с 7, а не 8
+      if (normalizedPhone.startsWith('8') && normalizedPhone.length === 11) {
+        normalizedPhone = '7' + normalizedPhone.slice(1);
+      }
+
       const chatId = normalizedPhone.endsWith('@c.us')
         ? normalizedPhone
         : `${normalizedPhone}@c.us`;
+
+      console.log(`📞 Обработка номера: "${phone}" → "${normalizedPhone}" → "${chatId}"`);
 
       // URL для отправки сообщения
       const url = `https://${config.apiUrl}/waInstance${config.idInstance}/sendMessage/${config.apiTokenInstance}`;
@@ -61,6 +70,7 @@ export default {
 
       console.log(`📤 Отправка WhatsApp сообщения на ${chatId}`);
       console.log(`🔗 URL: ${url}`);
+      console.log(`📋 Payload:`, JSON.stringify(payload, null, 2));
 
       const response = await fetch(url, {
         method: 'POST',
