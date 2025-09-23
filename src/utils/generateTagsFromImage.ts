@@ -27,7 +27,7 @@ export async function generateTagsFromImage(imageUrl: string): Promise<string[]>
           ],
         },
       ],
-      // max_completion_tokens: 100, // Временно закомментировано для отладки
+      max_completion_tokens: 200, 
     });
 
     console.log("✅ OpenAI API ответил успешно");
