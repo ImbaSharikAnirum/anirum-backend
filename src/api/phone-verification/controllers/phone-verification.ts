@@ -79,8 +79,45 @@ export default {
           const result = await whatsappService.sendVerificationCode(normalizedContact, code);
           console.log(`📤 WhatsApp сообщение отправлено через Green API:`, result);
         } else if (messenger === 'telegram') {
-          const result = await telegramService.sendVerificationCode(normalizedContact, code);
-          console.log(`📤 Telegram сообщение отправлено через Bot API:`, result);
+          // Для Telegram используем Deep Link flow
+          console.log(`🔗 Создаем Deep Link для Telegram верификации @${normalizedContact}`);
+
+          // Создаем сессию верификации через новый webhook API
+          const sessionResponse = await fetch(`${strapi.config.get('server.url')}/api/telegram-webhook/create-verification-session`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${ctx.state.jwt}` // Передаем JWT токен
+            },
+            body: JSON.stringify({
+              username: normalizedContact,
+              code: code
+            })
+          });
+
+          if (!sessionResponse.ok) {
+            throw new Error('Ошибка создания сессии верификации');
+          }
+
+          const sessionData = await sessionResponse.json() as {
+            success: boolean;
+            verificationHash: string;
+            deepLink: string;
+            message: string;
+          };
+          console.log(`📤 Создана сессия верификации:`, sessionData);
+
+          // Возвращаем специальный ответ для Telegram с Deep Link
+          return ctx.send({
+            success: true,
+            message: 'Для получения кода откройте Telegram',
+            phone: normalizedContact,
+            telegram: {
+              requiresDeepLink: true,
+              deepLink: sessionData.deepLink,
+              verificationHash: sessionData.verificationHash
+            }
+          });
         }
 
         return ctx.send({
