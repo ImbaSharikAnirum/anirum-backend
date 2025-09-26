@@ -35,5 +35,25 @@ export default {
         middlewares: [],
       },
     },
+    {
+      method: "POST",
+      path: "/telegram-webhook/setup-webhook",
+      handler: "telegram-webhook.setupWebhook",
+      config: {
+        policies: [],
+        middlewares: [],
+        auth: false, // Для удобства настройки
+      },
+    },
+    {
+      method: "GET",
+      path: "/telegram-webhook/webhook-info",
+      handler: "telegram-webhook.getWebhookInfo",
+      config: {
+        policies: [],
+        middlewares: [],
+        auth: false,
+      },
+    },
   ],
 };

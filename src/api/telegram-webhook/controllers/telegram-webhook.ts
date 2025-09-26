@@ -8,6 +8,14 @@ import telegramService from '../../phone-verification/services/telegram';
 // В памяти храним сессии верификации (для продакшена лучше Redis)
 const verificationSessions = new Map();
 
+// Типы для Telegram Bot API
+interface TelegramApiResponse {
+  ok: boolean;
+  result?: any;
+  error_code?: number;
+  description?: string;
+}
+
 interface TelegramUpdate {
   update_id: number;
   message?: {
@@ -256,6 +264,89 @@ export default {
 
     if (cleaned > 0) {
       console.log(`🧹 Очищено ${cleaned} истекших сессий верификации`);
+    }
+  },
+
+  /**
+   * Установить webhook в Telegram
+   * POST /api/telegram-webhook/setup-webhook
+   */
+  async setupWebhook(ctx) {
+    try {
+      const botToken = process.env.TELEGRAM_BOT_TOKEN;
+      const baseUrl = process.env.URL || 'https://anirum.up.railway.app';
+
+      if (!botToken) {
+        return ctx.badRequest('TELEGRAM_BOT_TOKEN не найден в переменных окружения');
+      }
+
+      const webhookUrl = `${baseUrl}/api/telegram-webhook`;
+
+      console.log(`🔗 Настройка webhook: ${webhookUrl}`);
+
+      // Устанавливаем webhook
+      const response = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: webhookUrl,
+          allowed_updates: ['message'],
+          drop_pending_updates: true
+        }),
+      });
+
+      const result = await response.json() as TelegramApiResponse;
+
+      if (!result.ok) {
+        throw new Error(`Telegram API Error: ${result.description}`);
+      }
+
+      // Получаем информацию о webhook
+      const webhookInfoResponse = await fetch(`https://api.telegram.org/bot${botToken}/getWebhookInfo`);
+      const webhookInfo = await webhookInfoResponse.json() as TelegramApiResponse;
+
+      return ctx.send({
+        success: true,
+        message: 'Webhook успешно настроен',
+        webhookUrl,
+        webhookInfo: webhookInfo.ok ? webhookInfo.result : null
+      });
+
+    } catch (error) {
+      console.error('❌ Ошибка настройки webhook:', error);
+      return ctx.internalServerError(`Ошибка настройки webhook: ${error.message}`);
+    }
+  },
+
+  /**
+   * Получить информацию о webhook
+   * GET /api/telegram-webhook/webhook-info
+   */
+  async getWebhookInfo(ctx) {
+    try {
+      const botToken = process.env.TELEGRAM_BOT_TOKEN;
+
+      if (!botToken) {
+        return ctx.badRequest('TELEGRAM_BOT_TOKEN не найден');
+      }
+
+      const response = await fetch(`https://api.telegram.org/bot${botToken}/getWebhookInfo`);
+      const result = await response.json() as TelegramApiResponse;
+
+      if (!result.ok) {
+        throw new Error(`Telegram API Error: ${result.description}`);
+      }
+
+      return ctx.send({
+        success: true,
+        webhookInfo: result.result
+      });
+
+    } catch (error) {
+      console.error('❌ Ошибка получения информации о webhook:', error);
+      return ctx.internalServerError(`Ошибка: ${error.message}`);
     }
   }
 };
