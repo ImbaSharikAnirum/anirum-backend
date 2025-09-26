@@ -6,6 +6,7 @@ import bcrypt from 'bcrypt';
 import dayjs from 'dayjs';
 import whatsappService from '../services/whatsapp';
 import telegramService from '../services/telegram';
+import telegramWebhookController from '../../telegram-webhook/controllers/telegram-webhook';
 
 // В памяти храним коды верификации (для продакшена лучше Redis)
 const verificationCodes = new Map();
@@ -82,29 +83,25 @@ export default {
           // Для Telegram используем Deep Link flow
           console.log(`🔗 Создаем Deep Link для Telegram верификации @${normalizedContact}`);
 
-          // Создаем сессию верификации через новый webhook API
-          const sessionResponse = await fetch(`${strapi.config.get('server.url')}/api/telegram-webhook/create-verification-session`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${ctx.state.jwt}` // Передаем JWT токен
+          // Создаем фейковый контекст для вызова контроллера
+          const fakeCtx = {
+            request: {
+              body: {
+                username: normalizedContact,
+                code: code
+              }
             },
-            body: JSON.stringify({
-              username: normalizedContact,
-              code: code
-            })
-          });
-
-          if (!sessionResponse.ok) {
-            throw new Error('Ошибка создания сессии верификации');
-          }
-
-          const sessionData = await sessionResponse.json() as {
-            success: boolean;
-            verificationHash: string;
-            deepLink: string;
-            message: string;
+            state: {
+              user: ctx.state.user
+            },
+            send: (data) => data,
+            unauthorized: (msg) => { throw new Error(`Unauthorized: ${msg}`) },
+            badRequest: (msg) => { throw new Error(`Bad Request: ${msg}`) },
+            internalServerError: (msg) => { throw new Error(`Internal Error: ${msg}`) }
           };
+
+          // Прямой вызов контроллера telegram-webhook
+          const sessionData = await telegramWebhookController.createVerificationSession(fakeCtx);
           console.log(`📤 Создана сессия верификации:`, sessionData);
 
           // Возвращаем специальный ответ для Telegram с Deep Link
