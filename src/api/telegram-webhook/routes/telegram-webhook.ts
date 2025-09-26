@@ -42,7 +42,6 @@ export default {
       config: {
         policies: [],
         middlewares: [],
-        auth: false, // Для удобства настройки
       },
     },
     {
@@ -52,7 +51,6 @@ export default {
       config: {
         policies: [],
         middlewares: [],
-        auth: false,
       },
     },
   ],
