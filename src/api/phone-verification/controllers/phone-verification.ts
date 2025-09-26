@@ -5,6 +5,7 @@
 import bcrypt from 'bcrypt';
 import dayjs from 'dayjs';
 import whatsappService from '../services/whatsapp';
+import telegramService from '../services/telegram';
 
 // В памяти храним коды верификации (для продакшена лучше Redis)
 const verificationCodes = new Map();
@@ -23,17 +24,32 @@ export default {
         return ctx.unauthorized('Необходима авторизация');
       }
 
-      if (!phone || !phone.trim()) {
-        return ctx.badRequest('Номер телефона обязателен');
+      // Валидация входных данных в зависимости от мессенджера
+      if (messenger === 'whatsapp') {
+        if (!phone || !phone.trim()) {
+          return ctx.badRequest('Номер телефона обязателен для WhatsApp');
+        }
+      } else if (messenger === 'telegram') {
+        if (!phone || !phone.trim()) {
+          return ctx.badRequest('Username обязателен для Telegram');
+        }
+        // Проверяем формат username (может быть с @ или без)
+        const usernameRegex = /^@?[a-zA-Z0-9_]{5,32}$/;
+        const cleanUsername = phone.replace('@', '');
+        if (!usernameRegex.test(cleanUsername)) {
+          return ctx.badRequest('Неверный формат username. Используйте формат @username или username');
+        }
       }
 
-      // Нормализуем номер телефона (убираем все кроме цифр и +)
-      const normalizedPhone = phone.replace(/[^\d+]/g, '');
+      // Нормализуем контакт в зависимости от мессенджера
+      const normalizedContact = messenger === 'whatsapp'
+        ? phone.replace(/[^\d+]/g, '') // Для WhatsApp - только цифры и +
+        : phone.trim(); // Для Telegram - оставляем username как есть
 
-      console.log(`📱 Отправка кода для ${normalizedPhone}, пользователь ${userId}`);
+      console.log(`📱 Отправка кода для ${normalizedContact} (${messenger}), пользователь ${userId}`);
 
       // Rate limiting - проверяем последнюю отправку
-      const key = `${normalizedPhone}_${userId}`;
+      const key = `${normalizedContact}_${userId}`;
       const lastAttempt = verificationCodes.get(key);
 
       if (lastAttempt && dayjs().diff(dayjs(lastAttempt.createdAt), 'minute') < 1) {
@@ -47,7 +63,7 @@ export default {
       // Сохраняем в памяти
       verificationCodes.set(key, {
         codeHash,
-        phone: normalizedPhone,
+        phone: normalizedContact, // Сохраняем нормализованный контакт
         messenger,
         userId,
         attempts: 0,
@@ -55,26 +71,29 @@ export default {
         expiresAt: dayjs().add(5, 'minute').toDate()
       });
 
-      console.log(`🔐 Код сгенерирован для ${normalizedPhone}: ${code}`);
+      console.log(`🔐 Код сгенерирован для ${normalizedContact}: ${code}`);
 
       try {
-        // Отправляем через Green API
+        // Отправляем в зависимости от мессенджера
         if (messenger === 'whatsapp') {
-          const result = await whatsappService.sendVerificationCode(normalizedPhone, code);
-          console.log(`📤 Сообщение отправлено через Green API:`, result);
+          const result = await whatsappService.sendVerificationCode(normalizedContact, code);
+          console.log(`📤 WhatsApp сообщение отправлено через Green API:`, result);
+        } else if (messenger === 'telegram') {
+          const result = await telegramService.sendVerificationCode(normalizedContact, code);
+          console.log(`📤 Telegram сообщение отправлено через Bot API:`, result);
         }
 
         return ctx.send({
           success: true,
           message: `Код отправлен в ${messenger === 'whatsapp' ? 'WhatsApp' : 'Telegram'}`,
-          phone: normalizedPhone
+          phone: normalizedContact
         });
 
       } catch (sendError) {
-        console.error('❌ Ошибка отправки кода через мессенджер:', sendError);
+        console.error(`❌ Ошибка отправки кода через ${messenger}:`, sendError);
         // Удаляем код при ошибке отправки
         verificationCodes.delete(key);
-        return ctx.badRequest('Ошибка отправки кода. Проверьте номер телефона.');
+        return ctx.badRequest(sendError.message || `Ошибка отправки кода через ${messenger}.`);
       }
 
     } catch (error: unknown) {
@@ -100,17 +119,17 @@ export default {
         return ctx.badRequest('Номер телефона и код обязательны');
       }
 
-      // Нормализуем номер телефона
-      const normalizedPhone = phone.replace(/[^\d+]/g, '');
+      // Нормализуем контакт (для WhatsApp - номер, для Telegram - username)
+      const normalizedContact = phone.trim();
       const normalizedCode = code.replace(/\D/g, ''); // Только цифры
 
       if (normalizedCode.length !== 6) {
         return ctx.badRequest('Код должен содержать 6 цифр');
       }
 
-      console.log(`🔍 Проверка кода для ${normalizedPhone}, код: ${normalizedCode}`);
+      console.log(`🔍 Проверка кода для ${normalizedContact}, код: ${normalizedCode}`);
 
-      const key = `${normalizedPhone}_${userId}`;
+      const key = `${normalizedContact}_${userId}`;
       const verification = verificationCodes.get(key);
 
       if (!verification) {
@@ -137,32 +156,34 @@ export default {
       const isValidCode = await bcrypt.compare(normalizedCode, verification.codeHash);
 
       if (!isValidCode) {
-        console.log(`❌ Неверный код для ${normalizedPhone}. Попытка ${verification.attempts}/3`);
+        console.log(`❌ Неверный код для ${normalizedContact}. Попытка ${verification.attempts}/3`);
         return ctx.badRequest(`Неверный код. Осталось попыток: ${3 - verification.attempts}`);
       }
 
       // Успешная верификация!
-      console.log(`✅ Код подтвержден для ${normalizedPhone}`);
+      console.log(`✅ Код подтвержден для ${normalizedContact} (${verification.messenger})`);
 
       // Удаляем код после успешной проверки (одноразовое использование)
       verificationCodes.delete(key);
 
       try {
         // Обновляем профиль пользователя
-        const phoneField = verification.messenger === 'whatsapp'
+        const verificationField = verification.messenger === 'whatsapp'
           ? 'whatsapp_phone_verified'
           : 'telegram_phone_verified';
 
         // @ts-ignore - Strapi typing
         await strapi.plugins['users-permissions'].services.user.edit(userId, {
-          [phoneField]: true
+          [verificationField]: true
         });
 
-        console.log(`✅ Профиль обновлен: ${phoneField} = true для пользователя ${userId}`);
+        console.log(`✅ Профиль обновлен: ${verificationField} = true для пользователя ${userId}`);
 
         return ctx.send({
           success: true,
-          message: 'Номер успешно подтвержден',
+          message: verification.messenger === 'whatsapp'
+            ? 'Номер успешно подтвержден'
+            : 'Username успешно подтвержден',
           verified: true,
           messenger: verification.messenger
         });
