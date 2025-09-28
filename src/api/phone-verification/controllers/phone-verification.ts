@@ -6,6 +6,7 @@ import bcrypt from 'bcrypt';
 import dayjs from 'dayjs';
 import whatsappService from '../services/whatsapp';
 import telegramService from '../services/telegram';
+import pendingSessions from '../services/pending-sessions';
 
 // В памяти храним коды верификации (для продакшена лучше Redis)
 const verificationCodes = new Map();
@@ -79,29 +80,31 @@ export default {
           const result = await whatsappService.sendVerificationCode(normalizedContact, code);
           console.log(`📤 WhatsApp сообщение отправлено через Green API:`, result);
         } else if (messenger === 'telegram') {
-          // Для Telegram отправляем код напрямую через Bot API
-          try {
-            const result = await telegramService.sendVerificationCode(normalizedContact, code);
-            console.log(`📤 Telegram сообщение отправлено через Bot API:`, result);
-          } catch (telegramError) {
-            console.error(`❌ Ошибка отправки в Telegram:`, telegramError);
+          // Для Telegram создаем pending сессию и ждем /start от пользователя
+          const session = pendingSessions.createPendingSession({
+            username: normalizedContact,
+            code: code,
+            userId: userId,
+            userDocumentId: ctx.state.user?.documentId || ctx.state.user?.id?.toString()
+          });
 
-            // Если не удалось отправить напрямую, предлагаем Deep Link как fallback
-            const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'anirum_v2_bot';
-            const deepLink = `https://t.me/${botUsername}?start=getcode`;
+          console.log(`🔄 Создана pending сессия для @${normalizedContact}: ${session.id}`);
 
-            return ctx.send({
-              success: true,
-              message: 'Не удалось отправить код напрямую. Откройте бот в Telegram',
-              phone: normalizedContact,
-              telegram: {
-                requiresDeepLink: true,
-                deepLink: deepLink,
-                instructions: `Перейдите к боту и напишите: /getcode ${normalizedContact} ${code}`,
-                fallbackCode: code
-              }
-            });
-          }
+          // Возвращаем специальный ответ для Telegram с инструкциями
+          const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'anirum_v2_bot';
+          const deepLink = `https://t.me/${botUsername}?start=verify`;
+
+          return ctx.send({
+            success: true,
+            message: 'Для получения кода откройте бот и нажмите /start',
+            phone: normalizedContact,
+            telegram: {
+              waitingForStart: true,
+              deepLink: deepLink,
+              instructions: 'Перейдите к боту и нажмите /start. Код будет отправлен автоматически.',
+              sessionId: session.id
+            }
+          });
         }
 
         return ctx.send({
@@ -114,8 +117,17 @@ export default {
         console.error(`❌ Ошибка отправки кода через ${messenger}:`, sendError);
         // Удаляем код при ошибке отправки
         verificationCodes.delete(key);
+
+        // Очищаем pending сессию для Telegram при ошибке
+        if (messenger === 'telegram') {
+          pendingSessions.cleanupUserSessions(normalizedContact);
+        }
+
         return ctx.badRequest(sendError.message || `Ошибка отправки кода через ${messenger}.`);
       }
+
+      // Очищаем истекшие сессии (maintenance)
+      pendingSessions.cleanupExpiredSessions();
 
     } catch (error: unknown) {
       console.error('❌ Ошибка в sendCode:', error);
