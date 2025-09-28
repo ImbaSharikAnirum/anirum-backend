@@ -365,7 +365,7 @@ export default factories.createCoreController(
         console.log(`📱 Выбран мессенджер: ${messenger}, контакт: ${contact}`);
 
         // Формируем URL оплаты
-        const baseUrl = "https://anirum.com";
+        const baseUrl = "https://www.anirum.com";
         const paymentUrl = `${baseUrl}/courses/${courseId}/payment/${invoiceDocumentId}`;
 
         // Формируем информацию о расписании
