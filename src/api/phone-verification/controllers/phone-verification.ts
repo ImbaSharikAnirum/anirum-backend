@@ -6,7 +6,6 @@ import bcrypt from 'bcrypt';
 import dayjs from 'dayjs';
 import whatsappService from '../services/whatsapp';
 import telegramService from '../services/telegram';
-import telegramWebhookController from '../../telegram-webhook/controllers/telegram-webhook';
 
 // В памяти храним коды верификации (для продакшена лучше Redis)
 const verificationCodes = new Map();
@@ -80,41 +79,29 @@ export default {
           const result = await whatsappService.sendVerificationCode(normalizedContact, code);
           console.log(`📤 WhatsApp сообщение отправлено через Green API:`, result);
         } else if (messenger === 'telegram') {
-          // Для Telegram используем Deep Link flow
-          console.log(`🔗 Создаем Deep Link для Telegram верификации @${normalizedContact}`);
+          // Для Telegram отправляем код напрямую через Bot API
+          try {
+            const result = await telegramService.sendVerificationCode(normalizedContact, code);
+            console.log(`📤 Telegram сообщение отправлено через Bot API:`, result);
+          } catch (telegramError) {
+            console.error(`❌ Ошибка отправки в Telegram:`, telegramError);
 
-          // Создаем фейковый контекст для вызова контроллера
-          const fakeCtx = {
-            request: {
-              body: {
-                username: normalizedContact,
-                code: code
+            // Если не удалось отправить напрямую, предлагаем Deep Link как fallback
+            const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'anirum_v2_bot';
+            const deepLink = `https://t.me/${botUsername}?start=getcode`;
+
+            return ctx.send({
+              success: true,
+              message: 'Не удалось отправить код напрямую. Откройте бот в Telegram',
+              phone: normalizedContact,
+              telegram: {
+                requiresDeepLink: true,
+                deepLink: deepLink,
+                instructions: `Перейдите к боту и напишите: /getcode ${normalizedContact} ${code}`,
+                fallbackCode: code
               }
-            },
-            state: {
-              user: ctx.state.user
-            },
-            send: (data) => data,
-            unauthorized: (msg) => { throw new Error(`Unauthorized: ${msg}`) },
-            badRequest: (msg) => { throw new Error(`Bad Request: ${msg}`) },
-            internalServerError: (msg) => { throw new Error(`Internal Error: ${msg}`) }
-          };
-
-          // Прямой вызов контроллера telegram-webhook
-          const sessionData = await telegramWebhookController.createVerificationSession(fakeCtx);
-          console.log(`📤 Создана сессия верификации:`, sessionData);
-
-          // Возвращаем специальный ответ для Telegram с Deep Link
-          return ctx.send({
-            success: true,
-            message: 'Для получения кода откройте Telegram',
-            phone: normalizedContact,
-            telegram: {
-              requiresDeepLink: true,
-              deepLink: sessionData.deepLink,
-              verificationHash: sessionData.verificationHash
-            }
-          });
+            });
+          }
         }
 
         return ctx.send({
