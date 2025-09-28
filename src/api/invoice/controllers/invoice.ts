@@ -365,8 +365,7 @@ export default factories.createCoreController(
         console.log(`📱 Выбран мессенджер: ${messenger}, контакт: ${contact}`);
 
         // Формируем URL оплаты
-        const baseUrl =
-          process.env.NEXT_PUBLIC_DOMAIN || "https://anirum.up.railway.app";
+        const baseUrl = "https://anirum.com";
         const paymentUrl = `${baseUrl}/courses/${courseId}/payment/${invoiceDocumentId}`;
 
         // Формируем информацию о расписании
@@ -399,7 +398,18 @@ export default factories.createCoreController(
           ) {
             // Убираем секунды из времени (16:00:00 -> 16:00)
             const formatTime = (time: string) => time.split(":").slice(0, 2).join(":");
-            const timeInfo = `${formatTime(invoice.course.startTime as string)} - ${formatTime(invoice.course.endTime as string)} (${invoice.course.timezone})`;
+            // Определяем месяц
+            let monthText = "";
+            if (invoice.startDate) {
+              const startDate = new Date(invoice.startDate);
+              const monthNames = [
+                "январь", "февраль", "март", "апрель", "май", "июнь",
+                "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"
+              ];
+              monthText = `, месяц: ${monthNames[startDate.getMonth()]}`;
+            }
+
+            const timeInfo = `${formatTime(invoice.course.startTime as string)} - ${formatTime(invoice.course.endTime as string)} (${invoice.course.timezone})${monthText}`;
             scheduleInfo = `Занятия проходят: ${weekdaysText}, время: ${timeInfo}`;
           } else {
             scheduleInfo = `Занятия проходят: ${weekdaysText}`;
