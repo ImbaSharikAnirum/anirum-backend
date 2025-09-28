@@ -53,9 +53,6 @@ export default {
 
     pendingSessions.set(sessionId, session);
 
-    console.log(`🔄 Создана pending сессия для @${normalizedUsername}: ${sessionId}`);
-    console.log(`📝 Код: ${data.code}, истекает: ${session.expiresAt.toLocaleString('ru-RU')}`);
-
     return session;
   },
 
@@ -88,21 +85,18 @@ export default {
     const session = pendingSessions.get(sessionId);
 
     if (!session) {
-      console.log(`❌ Сессия ${sessionId} не найдена`);
       return false;
     }
 
     // Проверяем, не истекла ли сессия
     if (new Date() > session.expiresAt) {
       this.deletePendingSession(sessionId);
-      console.log(`❌ Сессия ${sessionId} истекла`);
       return false;
     }
 
     session.chatId = chatId;
     pendingSessions.set(sessionId, session);
 
-    console.log(`✅ Сессия ${sessionId} обновлена с chat_id: ${chatId}`);
     return true;
   },
 
@@ -119,7 +113,6 @@ export default {
     session.codeDelivered = true;
     pendingSessions.set(sessionId, session);
 
-    console.log(`📤 Код доставлен для сессии ${sessionId}`);
     return true;
   },
 
@@ -127,11 +120,7 @@ export default {
    * Удалить pending сессию
    */
   deletePendingSession(sessionId: string): boolean {
-    const deleted = pendingSessions.delete(sessionId);
-    if (deleted) {
-      console.log(`🗑️ Удалена сессия ${sessionId}`);
-    }
-    return deleted;
+    return pendingSessions.delete(sessionId);
   },
 
   /**
@@ -142,16 +131,10 @@ export default {
       ? username.slice(1)
       : username;
 
-    let cleanedCount = 0;
     for (const [sessionId, session] of pendingSessions) {
       if (session.username === normalizedUsername) {
         pendingSessions.delete(sessionId);
-        cleanedCount++;
       }
-    }
-
-    if (cleanedCount > 0) {
-      console.log(`🧹 Очищено ${cleanedCount} старых сессий для @${normalizedUsername}`);
     }
   },
 
@@ -160,17 +143,11 @@ export default {
    */
   cleanupExpiredSessions(): void {
     const now = new Date();
-    let cleanedCount = 0;
 
     for (const [sessionId, session] of pendingSessions) {
       if (now > session.expiresAt) {
         pendingSessions.delete(sessionId);
-        cleanedCount++;
       }
-    }
-
-    if (cleanedCount > 0) {
-      console.log(`🧹 Очищено ${cleanedCount} истекших сессий`);
     }
   },
 

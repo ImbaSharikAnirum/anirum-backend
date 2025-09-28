@@ -45,22 +45,12 @@ export default {
     try {
       const update: TelegramUpdate = ctx.request.body;
 
-      console.log('📥 Telegram Webhook получил обновление:');
-      console.log(JSON.stringify(update, null, 2));
 
       // Обрабатываем входящие сообщения
       if (update.message) {
         const { message } = update;
         const { chat, from, text, date } = message;
 
-        console.log('📨 === НОВОЕ СООБЩЕНИЕ ===');
-        console.log(`👤 От: ${from.first_name} ${from.last_name || ''} (@${from.username || 'без username'})`);
-        console.log(`🆔 User ID: ${from.id}`);
-        console.log(`💬 Chat ID: ${chat.id}`);
-        console.log(`📝 Текст: "${text || '[нет текста]'}"`);
-        console.log(`🕐 Время: ${new Date(date * 1000).toLocaleString('ru-RU')}`);
-        console.log(`📱 Тип чата: ${chat.type}`);
-        console.log('========================');
 
         // Обрабатываем команду /start
         if (text === '/start' || text.startsWith('/start')) {
@@ -86,13 +76,11 @@ export default {
         return;
       }
 
-      console.log(`🎯 Обработка /start от @${username} (${chatId})`);
 
       // Ищем pending сессию для этого username
       const session = pendingSessions.findPendingSessionByUsername(username);
 
       if (session) {
-        console.log(`🔍 Найдена pending сессия: ${session.id}`);
 
         // Обновляем сессию с chat_id
         const updated = pendingSessions.updateSessionWithChatId(session.id, chatId);
@@ -111,8 +99,6 @@ export default {
 
           // Помечаем код как доставленный
           pendingSessions.markCodeAsDelivered(session.id);
-
-          console.log(`✅ Код ${session.code} отправлен пользователю @${username} (${chatId})`);
         } else {
           await this.sendMessage(chatId, '❌ Сессия верификации истекла. Попробуйте заново из веб-приложения.');
         }
@@ -147,7 +133,6 @@ export default {
 <i>Ваш аккаунт готов к верификации!</i>`;
 
     await this.sendMessage(chatId, welcomeMessage);
-    console.log(`👋 Отправлено приветствие для @${username} (${chatId})`);
   },
 
   /**
@@ -176,9 +161,7 @@ export default {
 
       const result = await response.json() as TelegramApiResponse;
 
-      if (result.ok) {
-        console.log(`✅ Сообщение отправлено в чат ${chatId}`);
-      } else {
+      if (!result.ok) {
         console.error(`❌ Ошибка отправки сообщения:`, result);
       }
 
@@ -205,7 +188,6 @@ export default {
 
       const webhookUrl = `${baseUrl}/api/telegram-webhook`;
 
-      console.log(`🔗 Настройка webhook: ${webhookUrl}`);
 
       // Устанавливаем webhook
       const response = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
@@ -230,8 +212,6 @@ export default {
       const webhookInfoResponse = await fetch(`https://api.telegram.org/bot${botToken}/getWebhookInfo`);
       const webhookInfo = await webhookInfoResponse.json() as TelegramApiResponse;
 
-      console.log('✅ Webhook успешно настроен!');
-      console.log('📋 Информация о webhook:', webhookInfo.result);
 
       return ctx.send({
         success: true,

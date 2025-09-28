@@ -47,7 +47,6 @@ export default {
         ? phone.replace(/[^\d+]/g, '') // Для WhatsApp - только цифры и +
         : phone.trim(); // Для Telegram - оставляем username как есть
 
-      console.log(`📱 Отправка кода для ${normalizedContact} (${messenger}), пользователь ${userId}`);
 
       // Rate limiting - проверяем последнюю отправку
       const key = `${normalizedContact}_${userId}`;
@@ -72,13 +71,11 @@ export default {
         expiresAt: dayjs().add(5, 'minute').toDate()
       });
 
-      console.log(`🔐 Код сгенерирован для ${normalizedContact}: ${code}`);
 
       try {
         // Отправляем в зависимости от мессенджера
         if (messenger === 'whatsapp') {
-          const result = await whatsappService.sendVerificationCode(normalizedContact, code);
-          console.log(`📤 WhatsApp сообщение отправлено через Green API:`, result);
+          await whatsappService.sendVerificationCode(normalizedContact, code);
         } else if (messenger === 'telegram') {
           // Для Telegram создаем pending сессию и ждем /start от пользователя
           const session = pendingSessions.createPendingSession({
@@ -88,7 +85,6 @@ export default {
             userDocumentId: ctx.state.user?.documentId || ctx.state.user?.id?.toString()
           });
 
-          console.log(`🔄 Создана pending сессия для @${normalizedContact}: ${session.id}`);
 
           // Возвращаем специальный ответ для Telegram с инструкциями
           const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'anirum_v2_bot';
