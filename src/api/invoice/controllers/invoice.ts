@@ -5,6 +5,8 @@
 import { factories } from "@strapi/strapi";
 import axios from "axios";
 import crypto from "crypto";
+import whatsappService from "../../phone-verification/services/whatsapp";
+import telegramService from "../../phone-verification/services/telegram";
 
 export default factories.createCoreController(
   "api::invoice.invoice",
@@ -82,11 +84,11 @@ export default factories.createCoreController(
         try {
           await strapi.documents("api::invoice.invoice").update({
             documentId: invoiceId,
-            data: { 
+            data: {
               tinkoffOrderId: orderId,
-              paymentId: null,        // Будет заполнен после ответа от Tinkoff
-              paymentDate: null,      // Будет заполнен при подтверждении платежа
-              statusPayment: false    // Остается false до подтверждения
+              paymentId: null, // Будет заполнен после ответа от Tinkoff
+              paymentDate: null, // Будет заполнен при подтверждении платежа
+              statusPayment: false, // Остается false до подтверждения
             },
           });
         } catch (error) {
@@ -147,13 +149,11 @@ export default factories.createCoreController(
       };
 
       try {
-
         const apiUrl = "https://securepay.tinkoff.ru/v2/Init";
 
         const response = await axios.post(apiUrl, requestData, {
           headers: { "Content-Type": "application/json" },
         });
-
 
         if (response.data.Success) {
           // Сохраняем PaymentId от Tinkoff в invoice
@@ -161,8 +161,8 @@ export default factories.createCoreController(
             try {
               await strapi.documents("api::invoice.invoice").update({
                 documentId: invoiceId,
-                data: { 
-                  paymentId: response.data.PaymentId.toString()
+                data: {
+                  paymentId: response.data.PaymentId.toString(),
                 },
               });
             } catch (error) {
@@ -194,11 +194,8 @@ export default factories.createCoreController(
     async handleTinkoffNotification(ctx) {
       const { OrderId, Success, Status, PaymentId } = ctx.request.body;
 
-
       try {
         if (Success && Status === "CONFIRMED" && OrderId) {
-          
-
           // Ищем invoice по tinkoffOrderId с populate для реферальных полей
           const invoices = await strapi
             .documents("api::invoice.invoice")
@@ -209,14 +206,13 @@ export default factories.createCoreController(
               populate: {
                 referralCode: true,
                 referrer: true,
-                owner: true
-              }
+                owner: true,
+              },
             });
-
 
           if (invoices.length > 0) {
             const invoice = invoices[0];
-            
+
             // Обновляем статус оплаты
             await strapi.documents("api::invoice.invoice").update({
               documentId: invoice.documentId,
@@ -228,21 +224,36 @@ export default factories.createCoreController(
             });
 
             // Списываем бонусы с баланса пользователя если они были использованы
-            if (invoice.bonusesUsed && invoice.bonusesUsed > 0 && invoice.owner) {
+            if (
+              invoice.bonusesUsed &&
+              invoice.bonusesUsed > 0 &&
+              invoice.owner
+            ) {
               try {
                 const userId = invoice.owner.id; // Используем числовой ID для entityService
-                const user = await strapi.entityService.findOne('plugin::users-permissions.user', userId);
-                
+                const user = await strapi.entityService.findOne(
+                  "plugin::users-permissions.user",
+                  userId
+                );
+
                 if (user) {
-                  await strapi.entityService.update('plugin::users-permissions.user', userId, {
-                    data: {
-                      bonusBalance: Math.max(0, (user.bonusBalance || 0) - invoice.bonusesUsed),
-                      totalSpentBonuses: (user.totalSpentBonuses || 0) + invoice.bonusesUsed
+                  await strapi.entityService.update(
+                    "plugin::users-permissions.user",
+                    userId,
+                    {
+                      data: {
+                        bonusBalance: Math.max(
+                          0,
+                          (user.bonusBalance || 0) - invoice.bonusesUsed
+                        ),
+                        totalSpentBonuses:
+                          (user.totalSpentBonuses || 0) + invoice.bonusesUsed,
+                      },
                     }
-                  });
+                  );
                 }
               } catch (error) {
-                console.error('Error deducting bonuses:', error);
+                console.error("Error deducting bonuses:", error);
               }
             }
 
@@ -251,19 +262,19 @@ export default factories.createCoreController(
               try {
                 const originalSum = invoice.originalSum || invoice.sum;
                 const bonusAmount = Math.round(originalSum * 0.1); // 10% от оригинальной суммы
-                
+
                 const referrerId = invoice.referrer.id; // Используем числовой ID для entityService
-                
-                await strapi.service('api::referral-code.referral-code')
+
+                await strapi
+                  .service("api::referral-code.referral-code")
                   .creditReferrerBonus(referrerId, bonusAmount);
-                
+
                 // Увеличиваем счетчик использований промокода
-                await strapi.service('api::referral-code.referral-code')
+                await strapi
+                  .service("api::referral-code.referral-code")
                   .applyReferralCode(invoice.referralCode.id);
-                
-                
               } catch (error) {
-                console.error('Error crediting referral bonus:', error);
+                console.error("Error crediting referral bonus:", error);
               }
             }
 
@@ -277,6 +288,162 @@ export default factories.createCoreController(
       } catch (error) {
         console.error("Ошибка при обработке уведомления:", error);
         return ctx.throw(500, "Ошибка на сервере при обработке уведомления");
+      }
+    },
+
+    /**
+     * Отправить сообщение с оплатой в мессенджер пользователя
+     * POST /api/invoices/send-payment-message
+     */
+    async sendPaymentMessage(ctx) {
+      try {
+        const { invoiceDocumentId, courseId } = ctx.request.body;
+        const userId = ctx.state.user?.id;
+
+        // Проверяем авторизацию
+        if (!userId) {
+          return ctx.unauthorized("Необходима авторизация");
+        }
+
+        // Проверяем роль пользователя (только менеджеры могут отправлять)
+        const userRole = ctx.state.user?.role?.name;
+        if (userRole !== "Manager") {
+          return ctx.forbidden("Только менеджеры могут отправлять сообщения");
+        }
+
+        // Валидация входных данных
+        if (!invoiceDocumentId || !courseId) {
+          return ctx.badRequest("Необходимы invoiceDocumentId и courseId");
+        }
+
+        console.log(
+          `📤 Отправка сообщения с оплатой для invoice: ${invoiceDocumentId}, course: ${courseId}`
+        );
+
+        // Получаем invoice с owner и course
+        const invoice = await strapi.documents("api::invoice.invoice").findOne({
+          documentId: invoiceDocumentId,
+          populate: ["owner", "course"],
+        });
+
+        if (!invoice) {
+          return ctx.notFound("Счет не найден");
+        }
+
+        if (!invoice.owner) {
+          return ctx.badRequest("У счета нет владельца");
+        }
+
+        console.log(
+          `👤 Владелец счета: ${invoice.owner.username}, WhatsApp верифицирован: ${invoice.owner.whatsapp_phone_verified}, Telegram верифицирован: ${invoice.owner.telegram_phone_verified}`
+        );
+
+        // Определяем доступный мессенджер (приоритет WhatsApp)
+        let messenger = null;
+        let contact = null;
+
+        if (
+          invoice.owner.whatsapp_phone_verified &&
+          invoice.owner.whatsapp_phone
+        ) {
+          messenger = "whatsapp";
+          contact = invoice.owner.whatsapp_phone;
+        } else if (
+          invoice.owner.telegram_phone_verified &&
+          invoice.owner.telegram_username
+        ) {
+          messenger = "telegram";
+          contact = invoice.owner.telegram_username;
+        }
+
+        if (!messenger || !contact) {
+          return ctx.badRequest(
+            "У пользователя нет верифицированных контактов в мессенджерах"
+          );
+        }
+
+        console.log(`📱 Выбран мессенджер: ${messenger}, контакт: ${contact}`);
+
+        // Формируем URL оплаты
+        const baseUrl =
+          process.env.NEXT_PUBLIC_DOMAIN || "https://anirum.up.railway.app";
+        const paymentUrl = `${baseUrl}/courses/${courseId}/payment/${invoiceDocumentId}`;
+
+        // Формируем информацию о расписании
+        let scheduleInfo = "";
+        if (
+          invoice.course?.weekdays &&
+          Array.isArray(invoice.course.weekdays) &&
+          invoice.course.weekdays.length > 0
+        ) {
+          // Используем ту же логику что и в frontend
+          const formatWeekdays = (weekdays: string[]) => {
+            const weekdayNames = {
+              monday: "Понедельник",
+              tuesday: "Вторник",
+              wednesday: "Среда",
+              thursday: "Четверг",
+              friday: "Пятница",
+              saturday: "Суббота",
+              sunday: "Воскресенье",
+            };
+            return weekdays.map((day) => weekdayNames[day] || day).join(", ");
+          };
+
+          const weekdaysText = formatWeekdays(invoice.course.weekdays as string[]);
+
+          if (
+            invoice.course.startTime &&
+            invoice.course.endTime &&
+            invoice.course.timezone
+          ) {
+            // Убираем секунды из времени (16:00:00 -> 16:00)
+            const formatTime = (time: string) => time.split(":").slice(0, 2).join(":");
+            const timeInfo = `${formatTime(invoice.course.startTime as string)} - ${formatTime(invoice.course.endTime as string)} (${invoice.course.timezone})`;
+            scheduleInfo = `Занятия проходят: ${weekdaysText}, время: ${timeInfo}`;
+          } else {
+            scheduleInfo = `Занятия проходят: ${weekdaysText}`;
+          }
+        }
+
+        // Формируем сообщение
+        const message = `Здравствуйте!
+
+Для оплаты курса, пожалуйста, перейдите по ссылке:
+${paymentUrl}
+
+${scheduleInfo ? scheduleInfo + "\n\n" : ""}Если у вас возникнут вопросы, обращайтесь к нам.
+Спасибо!`;
+
+        console.log(`📝 Сформированное сообщение:\n${message}`);
+
+        // Отправляем сообщение
+        try {
+          if (messenger === "whatsapp") {
+            await whatsappService.sendMessage(contact, message);
+          } else if (messenger === "telegram") {
+            await telegramService.sendMessage(contact, message);
+          }
+
+          console.log(`✅ Сообщение успешно отправлено в ${messenger}`);
+
+          return ctx.send({
+            success: true,
+            message: `Сообщение отправлено в ${messenger}`,
+            messenger: messenger,
+          });
+        } catch (sendError) {
+          console.error(
+            `❌ Ошибка отправки сообщения в ${messenger}:`,
+            sendError
+          );
+          return ctx.badRequest(
+            `Ошибка отправки сообщения: ${sendError.message}`
+          );
+        }
+      } catch (error) {
+        console.error("❌ Ошибка в sendPaymentMessage:", error);
+        return ctx.internalServerError("Внутренняя ошибка сервера");
       }
     },
   })
