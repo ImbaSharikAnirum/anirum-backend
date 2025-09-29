@@ -14,5 +14,10 @@ export default {
       path: '/invoices/bulk-send-payment-messages',
       handler: 'api::invoice.invoice.bulkSendPaymentMessages',
     },
+    {
+      method: 'POST',
+      path: '/invoices/copy-to-next-month',
+      handler: 'api::invoice.invoice.copyInvoicesToNextMonth',
+    },
   ],
 };

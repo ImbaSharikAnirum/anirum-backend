@@ -503,6 +503,210 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
     },
 
     /**
+     * Копировать счета текущего месяца на следующий месяц
+     * POST /api/invoices/copy-to-next-month
+     */
+    async copyInvoicesToNextMonth(ctx) {
+      try {
+        const { courseId, currentMonth, currentYear } = ctx.request.body;
+        const userId = ctx.state.user?.id;
+
+        // Проверяем авторизацию
+        if (!userId) {
+          return ctx.unauthorized('Необходима авторизация');
+        }
+
+        // Проверяем роль пользователя (только менеджеры могут копировать)
+        const userRole = ctx.state.user?.role?.name;
+        if (userRole !== 'Manager') {
+          return ctx.forbidden('Только менеджеры могут копировать счета');
+        }
+
+        // Валидация входных данных
+        if (!courseId || !currentMonth || !currentYear) {
+          return ctx.badRequest('Необходимо указать courseId, currentMonth и currentYear');
+        }
+
+        console.log(`📋 Копирование счетов на следующий месяц для курса: ${courseId}, с ${currentMonth}/${currentYear}`);
+
+        // Получаем информацию о курсе
+        const course = await strapi.documents('api::course.course').findOne({
+          documentId: courseId,
+          fields: ['weekdays', 'startDate', 'endDate'],
+        });
+
+        if (!course) {
+          return ctx.badRequest('Курс не найден');
+        }
+
+        // Получаем все invoices текущего месяца
+        const startDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`;
+        const lastDay = new Date(currentYear, currentMonth, 0).getDate();
+        const endDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-${lastDay}`;
+
+        const currentInvoices = await strapi.documents('api::invoice.invoice').findMany({
+          filters: {
+            course: {
+              documentId: courseId,
+            },
+            startDate: {
+              $gte: startDate,
+              $lte: endDate,
+            },
+          },
+          populate: ['owner'],
+        });
+
+        if (currentInvoices.length === 0) {
+          return ctx.badRequest('Нет счетов для копирования в текущем месяце');
+        }
+
+        console.log(`👥 Найдено счетов для копирования: ${currentInvoices.length}`);
+
+        // Вычисляем следующий месяц
+        let nextMonth = currentMonth + 1;
+        let nextYear = currentYear;
+        if (nextMonth > 12) {
+          nextMonth = 1;
+          nextYear += 1;
+        }
+
+        // Вычисляем даты для следующего месяца с учетом дней недели курса
+        const calculateNextMonthDates = (weekdays) => {
+          if (!weekdays || !Array.isArray(weekdays) || weekdays.length === 0) {
+            // Если дни недели не указаны, просто сдвигаем на месяц
+            const nextMonthStart = new Date(nextYear, nextMonth - 1, 1);
+            const nextMonthEnd = new Date(nextYear, nextMonth, 0);
+            return {
+              startDate: nextMonthStart.toISOString().split('T')[0],
+              endDate: nextMonthEnd.toISOString().split('T')[0],
+            };
+          }
+
+          // Преобразуем дни недели в числа (0=воскресенье, 1=понедельник, ...)
+          const weekdayMap = {
+            sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+            thursday: 4, friday: 5, saturday: 6
+          };
+          const courseDays = weekdays.map(day => weekdayMap[day]).filter(day => day !== undefined);
+
+          // Находим первый и последний день курса в следующем месяце
+          const nextMonthStart = new Date(nextYear, nextMonth - 1, 1);
+          const nextMonthEnd = new Date(nextYear, nextMonth, 0);
+
+          let firstCourseDay = null;
+          let lastCourseDay = null;
+
+          // Ищем первый день курса в месяце
+          for (let day = 1; day <= nextMonthEnd.getDate(); day++) {
+            const date = new Date(nextYear, nextMonth - 1, day);
+            if (courseDays.includes(date.getDay())) {
+              if (!firstCourseDay) firstCourseDay = date;
+              lastCourseDay = date;
+            }
+          }
+
+          // Проверяем границы общего курса
+          const courseStartDate = new Date(course.startDate);
+          const courseEndDate = new Date(course.endDate);
+
+          const effectiveStart = firstCourseDay && firstCourseDay >= courseStartDate
+            ? firstCourseDay
+            : new Date(Math.max(nextMonthStart.getTime(), courseStartDate.getTime()));
+
+          const effectiveEnd = lastCourseDay && lastCourseDay <= courseEndDate
+            ? lastCourseDay
+            : new Date(Math.min(nextMonthEnd.getTime(), courseEndDate.getTime()));
+
+          return {
+            startDate: effectiveStart.toISOString().split('T')[0],
+            endDate: effectiveEnd.toISOString().split('T')[0],
+          };
+        };
+
+        const nextMonthDates = calculateNextMonthDates(course.weekdays);
+
+        // Создаем новые invoices
+        const newInvoices = [];
+        const results = {
+          originalCount: currentInvoices.length,
+          copiedCount: 0,
+          nextMonth,
+          nextYear,
+          newInvoices: [],
+        };
+
+        for (const invoice of currentInvoices) {
+          try {
+            // Проверяем, не существует ли уже счет для этого пользователя в следующем месяце
+            const existingInvoice = await strapi.documents('api::invoice.invoice').findMany({
+              filters: {
+                course: {
+                  documentId: courseId,
+                },
+                owner: {
+                  documentId: invoice.owner?.documentId,
+                },
+                startDate: {
+                  $gte: `${nextYear}-${nextMonth.toString().padStart(2, '0')}-01`,
+                  $lte: `${nextYear}-${nextMonth.toString().padStart(2, '0')}-31`,
+                },
+              },
+            });
+
+            if (existingInvoice.length > 0) {
+              console.log(`⚠️ Счет для ${invoice.name} ${invoice.family} уже существует в ${nextMonth}/${nextYear}`);
+              continue;
+            }
+
+            // Создаем новый invoice
+            const newInvoiceData = {
+              name: invoice.name,
+              family: invoice.family,
+              sum: invoice.sum,
+              currency: invoice.currency,
+              startDate: nextMonthDates.startDate,
+              endDate: nextMonthDates.endDate,
+              statusPayment: false, // Новые счета не оплачены
+              course: courseId, // documentId курса
+              owner: invoice.owner?.documentId, // documentId владельца
+              // Копируем дополнительные поля если есть
+              originalSum: invoice.originalSum,
+              discountAmount: invoice.discountAmount,
+              bonusesUsed: 0, // Бонусы не переносим
+            };
+
+            const newInvoice = await strapi.documents('api::invoice.invoice').create({
+              data: newInvoiceData,
+            });
+
+            newInvoices.push(newInvoice);
+            results.copiedCount++;
+
+            console.log(`✅ Создан новый счет для ${invoice.name} ${invoice.family} на ${nextMonth}/${nextYear}`);
+
+          } catch (createError) {
+            console.error(`❌ Ошибка создания счета для ${invoice.name} ${invoice.family}:`, createError);
+          }
+        }
+
+        results.newInvoices = newInvoices;
+
+        console.log(`📊 Результаты копирования: ${results.copiedCount} из ${results.originalCount} счетов скопировано`);
+
+        return ctx.send({
+          success: true,
+          message: `Скопировано ${results.copiedCount} из ${results.originalCount} счетов на ${nextMonth}/${nextYear}`,
+          results,
+        });
+
+      } catch (error) {
+        console.error('❌ Ошибка в copyInvoicesToNextMonth:', error);
+        return ctx.internalServerError('Внутренняя ошибка сервера');
+      }
+    },
+
+    /**
      * Отправить сообщение с оплатой в мессенджер пользователя
      * POST /api/invoices/send-payment-message
      */
