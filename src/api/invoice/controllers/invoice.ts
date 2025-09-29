@@ -532,7 +532,7 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
         // Получаем информацию о курсе
         const course = await strapi.documents('api::course.course').findOne({
           documentId: courseId,
-          fields: ['weekdays', 'startDate', 'endDate'],
+          fields: ['weekdays', 'startDate', 'endDate', 'pricePerLesson', 'currency'],
         });
 
         if (!course) {
@@ -626,6 +626,49 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
 
         const nextMonthDates = calculateNextMonthDates(course.weekdays);
 
+        // Вычисляем количество занятий в следующем месяце
+        const calculateLessonsCount = (weekdays, startDate, endDate) => {
+          if (!weekdays || !Array.isArray(weekdays) || weekdays.length === 0) {
+            // Если дни недели не указаны, считаем как ежедневные занятия
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const diffTime = Math.abs(end.getTime() - start.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            return diffDays;
+          }
+
+          // Преобразуем дни недели в числа
+          const weekdayMap = {
+            sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+            thursday: 4, friday: 5, saturday: 6
+          };
+          const courseDays = weekdays.map(day => weekdayMap[day]).filter(day => day !== undefined);
+
+          let lessonsCount = 0;
+          const start = new Date(startDate);
+          const end = new Date(endDate);
+
+          // Перебираем все дни в диапазоне и считаем совпадения с днями курса
+          for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+            if (courseDays.includes(date.getDay())) {
+              lessonsCount++;
+            }
+          }
+
+          return lessonsCount;
+        };
+
+        const lessonsCount = calculateLessonsCount(
+          course.weekdays,
+          nextMonthDates.startDate,
+          nextMonthDates.endDate
+        );
+
+        // Рассчитываем общую сумму за месяц
+        const monthlySum = Math.round((course.pricePerLesson || 0) * lessonsCount);
+
+        console.log(`📊 Расчет для следующего месяца: ${lessonsCount} занятий × ${course.pricePerLesson} = ${monthlySum} ${course.currency}`);
+
         // Создаем новые invoices
         const newInvoices = [];
         const results = {
@@ -633,6 +676,10 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
           copiedCount: 0,
           nextMonth,
           nextYear,
+          lessonsCount,
+          monthlySum,
+          pricePerLesson: course.pricePerLesson,
+          currency: course.currency,
           newInvoices: [],
         };
 
@@ -659,20 +706,20 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
               continue;
             }
 
-            // Создаем новый invoice
+            // Создаем новый invoice с рассчитанной суммой
             const newInvoiceData = {
               name: invoice.name,
               family: invoice.family,
-              sum: invoice.sum,
-              currency: invoice.currency,
+              sum: monthlySum, // Рассчитанная сумма за месяц
+              currency: course.currency, // Валюта из курса
               startDate: nextMonthDates.startDate,
               endDate: nextMonthDates.endDate,
               statusPayment: false, // Новые счета не оплачены
               course: courseId, // documentId курса
               owner: invoice.owner?.documentId, // documentId владельца
-              // Копируем дополнительные поля если есть
-              originalSum: invoice.originalSum,
-              discountAmount: invoice.discountAmount,
+              // Устанавливаем originalSum как полную сумму без скидок
+              originalSum: monthlySum,
+              discountAmount: 0, // Скидки не переносим
               bonusesUsed: 0, // Бонусы не переносим
             };
 
