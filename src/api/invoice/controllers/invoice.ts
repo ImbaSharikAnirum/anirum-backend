@@ -292,6 +292,217 @@ export default factories.createCoreController(
     },
 
     /**
+     * Массовая отправка сообщений с оплатой всем студентам курса
+     * POST /api/invoices/bulk-send-payment-messages
+     */
+    async bulkSendPaymentMessages(ctx) {
+      try {
+        const { courseId } = ctx.request.body;
+        const userId = ctx.state.user?.id;
+
+        // Проверяем авторизацию
+        if (!userId) {
+          return ctx.unauthorized('Необходима авторизация');
+        }
+
+        // Проверяем роль пользователя (только менеджеры могут отправлять)
+        const userRole = ctx.state.user?.role?.name;
+        if (userRole !== 'Manager') {
+          return ctx.forbidden('Только менеджеры могут отправлять массовые сообщения');
+        }
+
+        // Валидация входных данных
+        if (!courseId) {
+          return ctx.badRequest('Необходимо указать courseId');
+        }
+
+        console.log(`📤 Массовая отправка сообщений для курса: ${courseId}`);
+
+        // Получаем все invoices курса с владельцами
+        const invoices = await strapi.documents('api::invoice.invoice').findMany({
+          filters: {
+            course: {
+              documentId: courseId,
+            },
+          },
+          populate: ['owner'],
+        });
+
+        if (invoices.length === 0) {
+          return ctx.badRequest('У курса нет студентов');
+        }
+
+        console.log(`👥 Найдено студентов: ${invoices.length}`);
+
+        // Результаты отправки
+        const results = {
+          total: invoices.length,
+          sent: 0,
+          failed: 0,
+          details: [],
+        };
+
+        // Обрабатываем каждого студента
+        for (const invoice of invoices) {
+          const studentName = `${invoice.name} ${invoice.family}`;
+
+          try {
+            if (!invoice.owner) {
+              console.log(`⚠️ У студента ${studentName} нет владельца`);
+              results.failed++;
+              results.details.push({
+                studentName,
+                success: false,
+                error: 'У студента нет владельца',
+              });
+              continue;
+            }
+
+            // Определяем доступный мессенджер (приоритет WhatsApp)
+            let messenger = null;
+            let contact = null;
+
+            if (
+              invoice.owner.whatsapp_phone_verified &&
+              invoice.owner.whatsapp_phone
+            ) {
+              messenger = 'whatsapp';
+              contact = invoice.owner.whatsapp_phone;
+            } else if (
+              invoice.owner.telegram_phone_verified &&
+              (invoice.owner as any).telegram_chat_id
+            ) {
+              messenger = 'telegram';
+              contact = (invoice.owner as any).telegram_chat_id;
+            }
+
+            if (!messenger || !contact) {
+              console.log(`⚠️ У студента ${studentName} нет верифицированных контактов`);
+              results.failed++;
+              results.details.push({
+                studentName,
+                success: false,
+                error: 'Нет верифицированных контактов в мессенджерах',
+              });
+              continue;
+            }
+
+            // Отправляем сообщение напрямую
+            try {
+              // Получаем информацию о курсе для формирования сообщения
+              const course = await strapi.documents('api::course.course').findOne({
+                documentId: courseId,
+                fields: ['direction', 'weekdays', 'startTime', 'endTime', 'timezone'],
+              });
+
+              if (!course) {
+                throw new Error('Курс не найден');
+              }
+
+              // Формируем URL оплаты
+              const baseUrl = 'https://www.anirum.com';
+              const paymentUrl = `${baseUrl}/courses/${courseId}/payment/${invoice.documentId}`;
+
+              // Формируем информацию о расписании
+              let scheduleInfo = '';
+              if (course.weekdays && Array.isArray(course.weekdays) && course.weekdays.length > 0) {
+                const formatWeekdays = (weekdays: string[]) => {
+                  const weekdayNames = {
+                    monday: 'Понедельник',
+                    tuesday: 'Вторник',
+                    wednesday: 'Среда',
+                    thursday: 'Четверг',
+                    friday: 'Пятница',
+                    saturday: 'Суббота',
+                    sunday: 'Воскресенье',
+                  };
+                  return weekdays.map((day) => weekdayNames[day] || day).join(', ');
+                };
+
+                const weekdaysText = formatWeekdays(course.weekdays as string[]);
+
+                if (course.startTime && course.endTime && course.timezone) {
+                  const formatTime = (time: string) => time.split(':').slice(0, 2).join(':');
+                  let monthText = '';
+                  if (invoice.startDate) {
+                    const startDate = new Date(invoice.startDate);
+                    const monthNames = [
+                      'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+                      'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'
+                    ];
+                    monthText = `, месяц: ${monthNames[startDate.getMonth()]}`;
+                  }
+
+                  const timeInfo = `${formatTime(course.startTime as string)} - ${formatTime(course.endTime as string)} (${course.timezone})${monthText}`;
+                  scheduleInfo = `Занятия проходят: ${weekdaysText}, время: ${timeInfo}`;
+                } else {
+                  scheduleInfo = `Занятия проходят: ${weekdaysText}`;
+                }
+              }
+
+              // Формируем сообщение
+              const message = `Здравствуйте!
+
+Для оплаты курса, пожалуйста, перейдите по ссылке:
+${paymentUrl}
+
+${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникнут вопросы, обращайтесь к нам.
+Спасибо!`;
+
+              // Отправляем сообщение
+              if (messenger === 'whatsapp') {
+                await whatsappService.sendMessage(contact, message);
+              } else if (messenger === 'telegram') {
+                await telegramService.sendMessage(contact, message);
+              }
+
+              console.log(`✅ Сообщение отправлено студенту ${studentName} в ${messenger}`);
+              results.sent++;
+              results.details.push({
+                studentName,
+                success: true,
+                messenger,
+              });
+
+              // Пауза между отправками для предотвращения rate limiting
+              await new Promise(resolve => setTimeout(resolve, 1000));
+
+            } catch (sendError) {
+              console.error(`❌ Ошибка отправки студенту ${studentName}:`, sendError);
+              results.failed++;
+              results.details.push({
+                studentName,
+                success: false,
+                error: sendError.message || 'Ошибка отправки сообщения',
+              });
+            }
+
+          } catch (studentError) {
+            console.error(`❌ Ошибка обработки студента ${studentName}:`, studentError);
+            results.failed++;
+            results.details.push({
+              studentName,
+              success: false,
+              error: studentError.message || 'Ошибка обработки студента',
+            });
+          }
+        }
+
+        console.log(`📊 Результаты массовой отправки: ${results.sent} отправлено, ${results.failed} ошибок`);
+
+        return ctx.send({
+          success: true,
+          message: `Массовая отправка завершена: ${results.sent} из ${results.total} сообщений отправлено`,
+          results,
+        });
+
+      } catch (error) {
+        console.error('❌ Ошибка в bulkSendPaymentMessages:', error);
+        return ctx.internalServerError('Внутренняя ошибка сервера');
+      }
+    },
+
+    /**
      * Отправить сообщение с оплатой в мессенджер пользователя
      * POST /api/invoices/send-payment-message
      */
