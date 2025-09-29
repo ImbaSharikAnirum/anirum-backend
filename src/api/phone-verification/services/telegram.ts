@@ -53,24 +53,39 @@ export default {
 
   /**
    * Отправить сообщение через Telegram Bot API
+   * Поддерживает как username, так и chat_id
    */
-  async sendMessage(username: string, message: string): Promise<SendMessageResponse> {
+  async sendMessage(identifier: string, message: string): Promise<SendMessageResponse> {
     try {
       const config = this.getTelegramBotConfig();
-      const normalizedUsername = this.normalizeUsername(username);
 
-      console.log(`📱 Отправка Telegram сообщения для @${normalizedUsername}`);
+      // Определяем, это chat_id (только цифры) или username
+      const isChatId = /^\d+$/.test(identifier);
+
+      let chatId: string;
+      let logInfo: string;
+
+      if (isChatId) {
+        chatId = identifier;
+        logInfo = `chat_id: ${chatId}`;
+      } else {
+        const normalizedUsername = this.normalizeUsername(identifier);
+        chatId = `@${normalizedUsername}`;
+        logInfo = `@${normalizedUsername}`;
+      }
+
+      console.log(`📱 Отправка Telegram сообщения для ${logInfo}`);
 
       // URL для отправки сообщения
       const url = `https://${config.apiUrl}/bot${config.botToken}/sendMessage`;
 
       const payload: SendMessagePayload = {
-        chat_id: `@${normalizedUsername}`,
+        chat_id: chatId,
         text: message,
         parse_mode: 'HTML'
       };
 
-      console.log(`📤 Отправка Telegram сообщения на @${normalizedUsername}`);
+      console.log(`📤 Отправка Telegram сообщения на ${logInfo}`);
       console.log(`🔗 URL: ${url}`);
       console.log(`📋 Payload:`, JSON.stringify(payload, null, 2));
 
@@ -135,15 +150,16 @@ export default {
 
   /**
    * Отправить код верификации
+   * Принимает username или chat_id
    */
-  async sendVerificationCode(username: string, code: string): Promise<SendMessageResponse> {
+  async sendVerificationCode(identifier: string, code: string): Promise<SendMessageResponse> {
     const message = `🔐 <b>Код подтверждения Anirum:</b> <code>${code}</code>
 
 Код действителен <b>5 минут</b>.
 
 ⚠️ <i>Никому не сообщайте этот код!</i>`;
 
-    return this.sendMessage(username, message);
+    return this.sendMessage(identifier, message);
   },
 
   /**

@@ -97,6 +97,16 @@ export default {
 
           await this.sendMessage(chatId, codeMessage);
 
+          // Сохраняем chat_id в профиль пользователя
+          try {
+            await strapi.plugins['users-permissions'].services.user.edit(session.userId, {
+              telegram_chat_id: chatId.toString()
+            });
+            console.log(`✅ Сохранен telegram_chat_id: ${chatId} для пользователя ${session.userId}`);
+          } catch (error) {
+            console.error('❌ Ошибка сохранения telegram_chat_id:', error);
+          }
+
           // Помечаем код как доставленный
           pendingSessions.markCodeAsDelivered(session.id);
         } else {

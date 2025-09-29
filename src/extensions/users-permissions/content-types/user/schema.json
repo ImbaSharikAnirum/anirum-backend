@@ -89,6 +89,9 @@
     "telegram_username": {
       "type": "string"
     },
+    "telegram_chat_id": {
+      "type": "string"
+    },
     "telegram_phone": {
       "type": "string"
     },

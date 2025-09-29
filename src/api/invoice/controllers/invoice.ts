@@ -335,7 +335,7 @@ export default factories.createCoreController(
         }
 
         console.log(
-          `👤 Владелец счета: ${invoice.owner.username}, WhatsApp верифицирован: ${invoice.owner.whatsapp_phone_verified}, Telegram верифицирован: ${invoice.owner.telegram_phone_verified}`
+          `👤 Владелец счета: ${invoice.owner.username}, WhatsApp верифицирован: ${invoice.owner.whatsapp_phone_verified}, Telegram верифицирован: ${invoice.owner.telegram_phone_verified}, Telegram chat_id: ${(invoice.owner as any).telegram_chat_id || 'не установлен'}`
         );
 
         // Определяем доступный мессенджер (приоритет WhatsApp)
@@ -350,10 +350,10 @@ export default factories.createCoreController(
           contact = invoice.owner.whatsapp_phone;
         } else if (
           invoice.owner.telegram_phone_verified &&
-          invoice.owner.telegram_username
+          (invoice.owner as any).telegram_chat_id
         ) {
           messenger = "telegram";
-          contact = invoice.owner.telegram_username;
+          contact = (invoice.owner as any).telegram_chat_id;
         }
 
         if (!messenger || !contact) {
