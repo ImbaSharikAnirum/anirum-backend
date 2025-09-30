@@ -297,7 +297,7 @@ export default factories.createCoreController(
      */
     async bulkSendPaymentMessages(ctx) {
       try {
-        const { courseId } = ctx.request.body;
+        const { courseId, month, year } = ctx.request.body;
         const userId = ctx.state.user?.id;
 
         // Проверяем авторизацию
@@ -316,15 +316,30 @@ export default factories.createCoreController(
           return ctx.badRequest('Необходимо указать courseId');
         }
 
-        console.log(`📤 Массовая отправка сообщений для курса: ${courseId}`);
+        console.log(`📤 Массовая отправка сообщений для курса: ${courseId}${month && year ? `, месяц: ${month}/${year}` : ''}`);
 
-        // Получаем все invoices курса с владельцами
-        const invoices = await strapi.documents('api::invoice.invoice').findMany({
-          filters: {
-            course: {
-              documentId: courseId,
-            },
+        // Формируем фильтры
+        const filters: any = {
+          course: {
+            documentId: courseId,
           },
+        };
+
+        // Добавляем фильтрацию по дате если указаны month и year
+        if (month && year) {
+          const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
+          const lastDay = new Date(year, month, 0).getDate();
+          const endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
+
+          filters.startDate = {
+            $gte: startDate,
+            $lte: endDate,
+          };
+        }
+
+        // Получаем invoices курса с владельцами (с учетом фильтров по дате)
+        const invoices = await strapi.documents('api::invoice.invoice').findMany({
+          filters,
           populate: ['owner'],
         });
 
