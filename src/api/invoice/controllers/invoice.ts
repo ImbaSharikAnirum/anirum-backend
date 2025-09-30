@@ -316,7 +316,8 @@ export default factories.createCoreController(
           return ctx.badRequest('Необходимо указать courseId');
         }
 
-        console.log(`📤 Массовая отправка сообщений для курса: ${courseId}${month && year ? `, месяц: ${month}/${year}` : ''}`);
+        console.log(`📤 Массовая отправка сообщений для курса: ${courseId}`);
+        console.log(`📅 Переданные параметры: month=${month}, year=${year}, типы: ${typeof month}, ${typeof year}`);
 
         // Формируем фильтры
         const filters: any = {
@@ -335,6 +336,11 @@ export default factories.createCoreController(
             $gte: startDate,
             $lte: endDate,
           };
+
+          console.log(`🗓️ Фильтрация по датам: ${startDate} - ${endDate}`);
+          console.log(`🔍 Итоговые фильтры:`, JSON.stringify(filters, null, 2));
+        } else {
+          console.log(`⚠️ Фильтрация по дате НЕ применяется (month или year не переданы)`);
         }
 
         // Получаем invoices курса с владельцами (с учетом фильтров по дате)
@@ -348,6 +354,13 @@ export default factories.createCoreController(
         }
 
         console.log(`👥 Найдено студентов: ${invoices.length}`);
+        console.log(`📋 Детали найденных invoices:`, invoices.map(inv => ({
+          documentId: inv.documentId,
+          studentName: `${inv.name} ${inv.family}`,
+          startDate: inv.startDate,
+          endDate: inv.endDate,
+          ownerName: inv.owner?.username || 'без владельца'
+        })));
 
         // Результаты отправки
         const results = {
