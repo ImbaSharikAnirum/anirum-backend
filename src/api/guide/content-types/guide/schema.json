@@ -49,6 +49,10 @@
     "tags": {
       "type": "json"
     },
+    "pinterest_id": {
+      "type": "string",
+      "unique": true
+    },
     "createdAt": {
       "type": "datetime"
     },
