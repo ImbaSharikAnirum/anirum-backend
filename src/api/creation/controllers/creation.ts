@@ -85,14 +85,14 @@ module.exports = {
       }
 
       // 3. Создаём Creation с привязкой к Guide
-      const creation = await strapi.documents("api::creation.creation").create({
+      const creation = await strapi.documents("api::creation.creation" as any).create({
         data: {
           image: imageId,
           pinterest_id,
           users_permissions_user: { documentId: user.documentId },
           guide: { documentId: guide.documentId },
         } as any,
-        populate: ["image", "guide", "users_permissions_user"],
+        populate: ["image", "guide", "users_permissions_user"] as any,
       });
 
       console.log("Creation успешно создан:", creation.id);
@@ -122,12 +122,12 @@ module.exports = {
     }
 
     try {
-      const creations = await strapi.documents("api::creation.creation").findMany({
+      const creations = await strapi.documents("api::creation.creation" as any).findMany({
         filters: {
           users_permissions_user: { documentId: { $eq: user.documentId } },
         } as any,
-        populate: ["image", "guide"],
-        sort: { createdAt: "desc" },
+        populate: ["image", "guide"] as any,
+        sort: { createdAt: "desc" } as any,
       });
 
       return ctx.send({
