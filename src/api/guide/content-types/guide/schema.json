@@ -53,6 +53,12 @@
       "type": "string",
       "unique": true
     },
+    "creations": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::creation.creation",
+      "mappedBy": "guide"
+    },
     "createdAt": {
       "type": "datetime"
     },

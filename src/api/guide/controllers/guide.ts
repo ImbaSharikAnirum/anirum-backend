@@ -12,10 +12,10 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
   async find(ctx: any) {
     const { query } = ctx
 
-    // По умолчанию показываем только одобренные гайды
+    // ВРЕМЕННО: показываем ВСЕ гайды (убрали фильтр approved: true)
     const filters = {
       ...query.filters,
-      approved: true,
+      // approved: true, // ← Закомментировали
     } as any
 
     const result = await strapi.entityService.findMany('api::guide.guide', {
@@ -33,6 +33,11 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
         }
       }
     })
+
+    console.log('=== GUIDE CONTROLLER DEBUG ===')
+    console.log('Filters:', filters)
+    console.log('Result count:', result?.length || 0)
+    console.log('First guide:', result?.[0])
 
     return this.transformResponse(result)
   },
