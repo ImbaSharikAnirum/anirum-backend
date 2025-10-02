@@ -24,15 +24,16 @@ export default factories.createCoreController(
 
     try {
       const {
-        imageId,
+        imageId, // Изображение креатива (загруженное пользователем)
         pinterest_id,
         pinTitle,
         pinLink,
+        pinImageUrl, // URL оригинального изображения пина из Pinterest API
       } = ctx.request.body;
 
       // Валидация
-      if (!imageId || !pinterest_id) {
-        return ctx.badRequest("Требуются imageId и pinterest_id");
+      if (!imageId || !pinterest_id || !pinImageUrl) {
+        return ctx.badRequest("Требуются imageId, pinterest_id и pinImageUrl");
       }
 
       // 1. Проверяем: существует ли Guide с этим pinterest_id?
@@ -43,34 +44,29 @@ export default factories.createCoreController(
         populate: ["image"],
       });
 
-      // 2. Если Guide не существует → создаём новый с AI тегами
+      // 2. Если Guide не существует → создаём новый с изображением пина (не креатива!)
       if (!guide) {
         console.log(`Guide с pinterest_id ${pinterest_id} не найден. Создаём новый...`);
 
-        // Создаём Guide БЕЗ тегов (сначала)
+        // Создаём Guide БЕЗ загруженного изображения - используем pinImageUrl для генерации тегов
         const newGuide = await strapi.documents("api::guide.guide").create({
           data: {
             title: pinTitle || "Pinterest Pin",
             link: pinLink || null,
             pinterest_id,
             tags: [], // Сначала пустые теги
-            image: imageId,
+            // НЕ сохраняем image - Guide хранит только ссылку на Pinterest пин
             users_permissions_user: { documentId: user.documentId },
             approved: false, // Требует модерации
           } as any,
-          populate: ["image"],
         });
 
-        // Генерируем теги через OpenAI Vision API
+        // Генерируем теги через OpenAI Vision API по оригинальному изображению пина
         let generatedTags = [];
         try {
-          const imageUrl = newGuide?.image?.url;
-
-          if (imageUrl) {
-            console.log("Генерация тегов для изображения:", imageUrl);
-            generatedTags = await generateTagsFromImage(imageUrl);
-            console.log("Сгенерированные теги:", generatedTags);
-          }
+          console.log("Генерация тегов для изображения пина:", pinImageUrl);
+          generatedTags = await generateTagsFromImage(pinImageUrl);
+          console.log("Сгенерированные теги:", generatedTags);
         } catch (tagError) {
           console.error("Ошибка генерации тегов (продолжаем без автотегов):", tagError);
         }
@@ -88,9 +84,10 @@ export default factories.createCoreController(
       }
 
       // 3. Создаём Creation с привязкой к Guide
+      // Creation содержит загруженное пользователем изображение (imageId)
       const creation = await strapi.documents("api::creation.creation").create({
         data: {
-          image: imageId,
+          image: imageId, // ← Изображение креатива пользователя
           pinterest_id,
           users_permissions_user: { documentId: user.documentId },
           guide: { documentId: guide.documentId },
