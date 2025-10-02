@@ -1,7 +1,9 @@
 import path from "path";
 
 export default ({ env }) => {
-  const client = env("DATABASE_CLIENT", "sqlite");
+  // Автоматически определяем окружение: если есть DATABASE_URL - это Railway (PostgreSQL)
+  const isProduction = !!env("DATABASE_URL");
+  const client = isProduction ? "postgres" : env("DATABASE_CLIENT", "sqlite");
 
   const connections = {
     mysql: {
@@ -31,7 +33,8 @@ export default ({ env }) => {
 
     postgres: {
       connection: {
-        connectionString: env("DATABASE_PRIVATE_URL"),
+        // Railway автоматически предоставляет DATABASE_URL
+        connectionString: env("DATABASE_URL") || env("DATABASE_PRIVATE_URL"),
         host: env("DATABASE_HOST", "localhost"),
         port: env.int("DATABASE_PORT", 5432),
         database: env("DATABASE_NAME", "strapi"),
@@ -57,10 +60,9 @@ export default ({ env }) => {
     },
     sqlite: {
       connection: {
-        filename: path.join(
-          __dirname,
-          "..",
-          "..",
+        // Используем абсолютный путь от корня проекта, чтобы избежать dist/
+        filename: path.resolve(
+          process.cwd(),
           env("DATABASE_FILENAME", ".tmp/data.db")
         ),
       },

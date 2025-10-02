@@ -2,9 +2,12 @@
  * creation controller
  */
 
+import { factories } from "@strapi/strapi";
 import { generateTagsFromImage } from "../../../utils";
 
-module.exports = {
+export default factories.createCoreController(
+  "api::creation.creation",
+  ({ strapi }) => ({
   /**
    * Загрузка пользовательского изображения по Pinterest пину
    * Логика:
@@ -85,14 +88,14 @@ module.exports = {
       }
 
       // 3. Создаём Creation с привязкой к Guide
-      const creation = await strapi.documents("api::creation.creation" as any).create({
+      const creation = await strapi.documents("api::creation.creation").create({
         data: {
           image: imageId,
           pinterest_id,
           users_permissions_user: { documentId: user.documentId },
           guide: { documentId: guide.documentId },
         } as any,
-        populate: ["image", "guide", "users_permissions_user"] as any,
+        populate: ["image", "guide", "users_permissions_user"],
       });
 
       console.log("Creation успешно создан:", creation.id);
@@ -122,12 +125,12 @@ module.exports = {
     }
 
     try {
-      const creations = await strapi.documents("api::creation.creation" as any).findMany({
+      const creations = await strapi.documents("api::creation.creation").findMany({
         filters: {
           users_permissions_user: { documentId: { $eq: user.documentId } },
         } as any,
-        populate: ["image", "guide"] as any,
-        sort: { createdAt: "desc" } as any,
+        populate: ["image", "guide"],
+        sort: { createdAt: "desc" },
       });
 
       return ctx.send({
@@ -139,4 +142,4 @@ module.exports = {
       return ctx.throw(500, "Ошибка при получении creations");
     }
   },
-};
+}));

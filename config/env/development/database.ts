@@ -1,9 +1,17 @@
+import path from "path";
+
 export default ({ env }) => ({
   connection: {
-    client: "postgres",
+    client: "sqlite",
     connection: {
-      connectionString: env("DATABASE_URL"),
+      filename: path.join(
+        __dirname,
+        "..",
+        "..",
+        "..",
+        env("DATABASE_FILENAME", ".tmp/data.db")
+      ),
     },
-    acquireConnectionTimeout: env.int("DATABASE_CONNECTION_TIMEOUT", 60000),
+    useNullAsDefault: true,
   },
 });
