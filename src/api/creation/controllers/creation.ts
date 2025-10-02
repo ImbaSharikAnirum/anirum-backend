@@ -5,25 +5,38 @@
 import { factories } from "@strapi/strapi";
 import { generateTagsFromImage } from "../../../utils";
 import axios from "axios";
-import FormData from "form-data";
+import fs from "fs";
+import path from "path";
+import os from "os";
 
 /**
  * Загрузить изображение из URL в Strapi
+ * Strapi 5 требует временный файл для загрузки
  */
 async function downloadImageFromUrl(imageUrl: string, fileName: string = "pinterest-pin.jpg") {
+  let tempFilePath: string | null = null;
+
   try {
     // Скачиваем изображение
     const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
     const buffer = Buffer.from(response.data, "binary");
+    const mimeType = response.headers["content-type"] || "image/jpeg";
 
-    // Загружаем в Strapi через upload service
+    // Создаём временный файл
+    const tempDir = os.tmpdir();
+    tempFilePath = path.join(tempDir, fileName);
+    fs.writeFileSync(tempFilePath, buffer);
+
+    const stats = fs.statSync(tempFilePath);
+
+    // Загружаем в Strapi через upload service (Strapi 5 API)
     const uploadedFiles = await strapi.plugins.upload.services.upload.upload({
       data: {},
       files: {
-        name: fileName,
-        type: response.headers["content-type"] || "image/jpeg",
-        size: buffer.length,
-        buffer: buffer, // ← Используем buffer вместо path
+        filepath: tempFilePath,          // Strapi 5: filepath вместо path
+        originalFilename: fileName,      // Strapi 5: originalFilename вместо name
+        mimetype: mimeType,              // Strapi 5: mimetype вместо type
+        size: stats.size,
       },
     });
 
@@ -31,6 +44,15 @@ async function downloadImageFromUrl(imageUrl: string, fileName: string = "pinter
   } catch (error) {
     console.error("Ошибка загрузки изображения из URL:", error);
     throw error;
+  } finally {
+    // Удаляем временный файл
+    if (tempFilePath && fs.existsSync(tempFilePath)) {
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch (unlinkError) {
+        console.error("Ошибка удаления временного файла:", unlinkError);
+      }
+    }
   }
 }
 
