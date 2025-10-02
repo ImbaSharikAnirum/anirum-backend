@@ -4,6 +4,42 @@
 
 import { factories } from "@strapi/strapi";
 import { generateTagsFromImage } from "../../../utils";
+import axios from "axios";
+import FormData from "form-data";
+
+/**
+ * Загрузить изображение из URL в Strapi
+ */
+async function downloadImageFromUrl(imageUrl: string, fileName: string = "pinterest-pin.jpg") {
+  try {
+    // Скачиваем изображение
+    const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
+    const buffer = Buffer.from(response.data, "binary");
+
+    // Создаём FormData для загрузки в Strapi
+    const formData = new FormData();
+    formData.append("files", buffer, {
+      filename: fileName,
+      contentType: response.headers["content-type"] || "image/jpeg",
+    });
+
+    // Загружаем в Strapi через upload API
+    const uploadResponse = await strapi.plugins.upload.services.upload.upload({
+      data: {},
+      files: {
+        path: buffer,
+        name: fileName,
+        type: response.headers["content-type"] || "image/jpeg",
+        size: buffer.length,
+      },
+    });
+
+    return uploadResponse[0]; // Возвращаем первый загруженный файл
+  } catch (error) {
+    console.error("Ошибка загрузки изображения из URL:", error);
+    throw error;
+  }
+}
 
 export default factories.createCoreController(
   "api::creation.creation",
@@ -48,37 +84,52 @@ export default factories.createCoreController(
       if (!guide) {
         console.log(`Guide с pinterest_id ${pinterest_id} не найден. Создаём новый...`);
 
-        // Создаём Guide БЕЗ загруженного изображения - используем pinImageUrl для генерации тегов
+        // Шаг 1: Загружаем изображение пина из Pinterest URL
+        let pinImage;
+        try {
+          console.log("Загрузка изображения пина из URL:", pinImageUrl);
+          pinImage = await downloadImageFromUrl(pinImageUrl, `pinterest-pin-${pinterest_id}.jpg`);
+          console.log("Изображение пина загружено, ID:", pinImage.id);
+        } catch (downloadError) {
+          console.error("Ошибка загрузки изображения пина:", downloadError);
+          return ctx.badRequest("Не удалось загрузить изображение пина из Pinterest");
+        }
+
+        // Шаг 2: Создаём Guide с загруженным изображением пина
         const newGuide = await strapi.documents("api::guide.guide").create({
           data: {
             title: pinTitle || "Pinterest Pin",
             link: pinLink || null,
             pinterest_id,
             tags: [], // Сначала пустые теги
-            // НЕ сохраняем image - Guide хранит только ссылку на Pinterest пин
+            image: pinImage.id, // ← Изображение пина из Pinterest
             users_permissions_user: { documentId: user.documentId },
             approved: false, // Требует модерации
           } as any,
+          populate: ["image"],
         });
 
-        // Генерируем теги через OpenAI Vision API по оригинальному изображению пина
+        // Шаг 3: Генерируем теги через OpenAI Vision API по загруженному изображению пина
         let generatedTags = [];
         try {
-          console.log("Генерация тегов для изображения пина:", pinImageUrl);
-          generatedTags = await generateTagsFromImage(pinImageUrl);
-          console.log("Сгенерированные теги:", generatedTags);
+          const uploadedPinImageUrl = newGuide?.image?.url;
+          if (uploadedPinImageUrl) {
+            console.log("Генерация тегов для изображения пина:", uploadedPinImageUrl);
+            generatedTags = await generateTagsFromImage(uploadedPinImageUrl);
+            console.log("Сгенерированные теги:", generatedTags);
+          }
         } catch (tagError) {
           console.error("Ошибка генерации тегов (продолжаем без автотегов):", tagError);
         }
 
-        // Обновляем Guide с тегами
+        // Шаг 4: Обновляем Guide с тегами
         guide = await strapi.documents("api::guide.guide").update({
           documentId: newGuide.documentId,
           data: { tags: generatedTags } as any,
           populate: ["image"],
         });
 
-        console.log(`Guide создан с ${generatedTags.length} тегами`);
+        console.log(`Guide создан с изображением и ${generatedTags.length} тегами`);
       } else {
         console.log(`Guide с pinterest_id ${pinterest_id} уже существует (id: ${guide.documentId})`);
       }
