@@ -16,25 +16,18 @@ async function downloadImageFromUrl(imageUrl: string, fileName: string = "pinter
     const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
     const buffer = Buffer.from(response.data, "binary");
 
-    // Создаём FormData для загрузки в Strapi
-    const formData = new FormData();
-    formData.append("files", buffer, {
-      filename: fileName,
-      contentType: response.headers["content-type"] || "image/jpeg",
-    });
-
-    // Загружаем в Strapi через upload API
-    const uploadResponse = await strapi.plugins.upload.services.upload.upload({
+    // Загружаем в Strapi через upload service
+    const uploadedFiles = await strapi.plugins.upload.services.upload.upload({
       data: {},
       files: {
-        path: buffer,
         name: fileName,
         type: response.headers["content-type"] || "image/jpeg",
         size: buffer.length,
+        buffer: buffer, // ← Используем buffer вместо path
       },
     });
 
-    return uploadResponse[0]; // Возвращаем первый загруженный файл
+    return uploadedFiles[0]; // Возвращаем первый загруженный файл
   } catch (error) {
     console.error("Ошибка загрузки изображения из URL:", error);
     throw error;
