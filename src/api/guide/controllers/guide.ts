@@ -7,20 +7,17 @@ import { factories } from '@strapi/strapi'
 export default factories.createCoreController('api::guide.guide', ({ strapi }) => ({
 
   /**
-   * Получить все одобренные гайды
+   * Получить все гайды (с сортировкой по количеству креативов)
    */
   async find(ctx: any) {
     const { query } = ctx
 
-    // ВРЕМЕННО: показываем ВСЕ гайды (убрали фильтр approved: true)
-    const filters = {
-      ...query.filters,
-      // approved: true, // ← Закомментировали
-    } as any
-
-    const result = await strapi.entityService.findMany('api::guide.guide', {
+    // Получаем все гайды с креативами
+    const allGuides = await strapi.entityService.findMany('api::guide.guide', {
       ...query,
-      filters,
+      filters: {
+        ...query.filters,
+      } as any,
       populate: {
         image: {
           fields: ['url', 'alternativeText', 'formats']
@@ -30,14 +27,33 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
         },
         savedBy: {
           fields: ['id']
+        },
+        creations: {
+          fields: ['id'] // Нужно для подсчёта
         }
-      }
+      },
+      pagination: false // Получаем все для сортировки
+    })
+
+    // Сортируем по количеству креативов (убывание)
+    const sortedGuides = allGuides
+      .map((guide: any) => ({
+        ...guide,
+        creationsCount: guide.creations?.length || 0
+      }))
+      .filter((guide: any) => guide.creationsCount > 0) // Только с креативами
+      .sort((a: any, b: any) => b.creationsCount - a.creationsCount)
+
+    // Удаляем временные поля из ответа
+    const result = sortedGuides.map((guide: any) => {
+      const { creations, creationsCount, ...rest } = guide
+      return rest
     })
 
     console.log('=== GUIDE CONTROLLER DEBUG ===')
-    console.log('Filters:', filters)
-    console.log('Result count:', result?.length || 0)
-    console.log('First guide:', result?.[0])
+    console.log('Total guides:', allGuides.length)
+    console.log('Guides with creations:', result.length)
+    console.log('Top guide creations:', sortedGuides[0]?.creationsCount)
 
     return this.transformResponse(result)
   },
