@@ -48,15 +48,6 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
       return rest
     })
 
-    console.log('=== GUIDE CONTROLLER DEBUG ===')
-    console.log('Total guides in DB:', allGuides.length)
-    console.log('Guides with creations (filtered):', result.length)
-    console.log('Top guide creations:', sortedGuides[0]?.creationsCount)
-    console.log('Returning to client:', result.length, 'guides')
-    if (result.length > 0) {
-      console.log('Sample guide titles:', result.slice(0, 3).map((g: any) => `"${g.title}" (${g.creationsCount} creations)`))
-    }
-
     return this.transformResponse(result)
   },
 
