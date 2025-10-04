@@ -28,9 +28,7 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
         savedBy: {
           fields: ['id']
         },
-        creations: {
-          fields: ['id'] // Нужно для подсчёта
-        }
+        creations: true // Упрощенный синтаксис для подсчёта
       },
       pagination: false // Получаем все для сортировки
     })

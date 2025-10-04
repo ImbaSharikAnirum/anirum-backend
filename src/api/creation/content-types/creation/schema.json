@@ -32,7 +32,8 @@
     "guide": {
       "type": "relation",
       "relation": "manyToOne",
-      "target": "api::guide.guide"
+      "target": "api::guide.guide",
+      "inversedBy": "creations"
     }
   }
 }
