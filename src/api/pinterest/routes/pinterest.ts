@@ -50,5 +50,14 @@ export default {
         middlewares: [],
       },
     },
+    {
+      method: "POST",
+      path: "/pinterest/save-all-pins",
+      handler: "pinterest.saveAllPinsAsGuides",
+      config: {
+        policies: [],
+        middlewares: [],
+      },
+    },
   ],
 };

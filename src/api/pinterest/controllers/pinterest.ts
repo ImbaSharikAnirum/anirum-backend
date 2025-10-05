@@ -285,4 +285,240 @@ module.exports = {
       });
     }
   },
+
+  async saveAllPinsAsGuides(ctx) {
+    const user = ctx.state.user;
+
+    if (!user) {
+      return ctx.unauthorized("Необходима авторизация");
+    }
+
+    // Проверка: только менеджеры
+    if (user.role?.type !== "manager") {
+      return ctx.forbidden("Доступно только для менеджеров");
+    }
+
+    const token = user?.pinterestAccessToken;
+
+    if (!token) {
+      return ctx.unauthorized("Pinterest не подключен");
+    }
+
+    console.log("🚀 [SAVE ALL PINS] Начало массового сохранения пинов");
+    console.log(`👤 Менеджер: ${user.username} (${user.documentId})`);
+
+    try {
+      // ✅ Шаг 1: Загружаем ВСЕ пины с Pinterest API с пагинацией
+      console.log("\n📥 Загрузка всех пинов с Pinterest API...");
+      let allPins = [];
+      let bookmark = null;
+      let pageNumber = 1;
+
+      do {
+        const url = `https://api.pinterest.com/v5/pins?page_size=100${
+          bookmark ? `&bookmark=${bookmark}` : ""
+        }`;
+
+        console.log(`  📄 Страница ${pageNumber}: Запрос к Pinterest API...`);
+
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`  ❌ Ошибка Pinterest API: ${response.status} - ${errorText}`);
+          throw new Error(`Pinterest API error: ${response.status}`);
+        }
+
+        const data = await response.json() as any;
+        const pageItems = data.items || [];
+
+        console.log(`  ✅ Загружено ${pageItems.length} пинов (страница ${pageNumber})`);
+
+        allPins.push(...pageItems);
+        bookmark = data.bookmark;
+        pageNumber++;
+
+      } while (bookmark);
+
+      console.log(`\n✨ Всего загружено пинов: ${allPins.length}`);
+
+      if (allPins.length === 0) {
+        console.log("⚠️ Нет пинов для сохранения");
+        return ctx.send({
+          success: true,
+          results: { success: [], skipped: [], errors: [] },
+          summary: { total: 0, saved: 0, skipped: 0, errors: 0 },
+        });
+      }
+
+      // ✅ Шаг 2: Обрабатываем каждый пин
+      console.log("\n💾 Начало сохранения пинов как гайдов...");
+
+      const results = {
+        success: [],
+        skipped: [],
+        errors: [],
+      };
+
+      let processedCount = 0;
+
+      for (const pin of allPins) {
+        processedCount++;
+
+        try {
+          const pinId = pin.id;
+          const pinLink = `https://www.pinterest.com/pin/${pinId}/`;
+          const title = pin.title || pin.note || "Pinterest Pin";
+          const description = pin.description || "";
+
+          console.log(`\n  [${processedCount}/${allPins.length}] Обработка пина ${pinId}`);
+
+          // Проверка дубликатов
+          const existingGuide = await strapi.documents("api::guide.guide").findFirst({
+            filters: { link: pinLink } as any,
+          });
+
+          if (existingGuide) {
+            console.log(`    ⏭️ Пропущен (уже существует как гайд ${existingGuide.documentId})`);
+            results.skipped.push({
+              pinId,
+              reason: "Уже существует",
+              guideId: existingGuide.documentId,
+            });
+            continue;
+          }
+
+          // Получаем URL изображения (максимальное качество)
+          const imageUrl = (pin.media?.images?.['1200x'] as any)?.url ||
+                          (pin.media?.images?.['736x'] as any)?.url ||
+                          (Object.values(pin.media?.images || {})[0] as any)?.url;
+
+          if (!imageUrl) {
+            console.log(`    ❌ Ошибка: изображение недоступно`);
+            results.errors.push({
+              pinId,
+              error: "Изображение недоступно",
+            });
+            continue;
+          }
+
+          // Загружаем изображение через прокси
+          console.log(`    📥 Загрузка изображения...`);
+
+          const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(imageUrl)}`;
+          const imageResponse = await fetch(proxyUrl);
+
+          if (!imageResponse.ok) {
+            throw new Error(`HTTP ${imageResponse.status}: Не удалось загрузить изображение`);
+          }
+
+          const blob = await imageResponse.blob();
+
+          if (!blob.type.startsWith('image/')) {
+            throw new Error(`Неверный тип файла: ${blob.type}`);
+          }
+
+          const fileName = `pinterest-pin-${pinId}-${Date.now()}.${blob.type.split('/')[1] || 'jpg'}`;
+          const buffer = Buffer.from(await blob.arrayBuffer());
+
+          // Загружаем в Strapi
+          const uploadedFiles = await strapi.plugins.upload.services.upload.upload({
+            data: {},
+            files: {
+              path: buffer,
+              name: fileName,
+              type: blob.type,
+              size: buffer.length,
+            },
+          });
+
+          const imageId = uploadedFiles[0].id;
+          console.log(`    ✅ Изображение загружено (ID: ${imageId})`);
+
+          // Создаем гайд БЕЗ тегов
+          const newGuide = await strapi.documents("api::guide.guide").create({
+            data: {
+              title,
+              text: description,
+              link: pinLink,
+              tags: [],
+              approved: false,
+              image: imageId,
+              users_permissions_user: { documentId: user.documentId },
+            } as any,
+            populate: ["image"],
+          });
+
+          console.log(`    📝 Гайд создан (ID: ${newGuide.documentId})`);
+
+          // Генерируем теги по изображению
+          let generatedTags = [];
+          try {
+            const generatedImageUrl = newGuide?.image?.url;
+            if (generatedImageUrl) {
+              console.log(`    🏷️ Генерация тегов...`);
+              generatedTags = await generateTagsFromImage(generatedImageUrl);
+              console.log(`    ✅ Сгенерировано тегов: ${generatedTags.length}`);
+            }
+          } catch (tagError) {
+            console.log(`    ⚠️ Ошибка генерации тегов (продолжаем без тегов)`);
+          }
+
+          // Обновляем гайд с тегами
+          await strapi.documents("api::guide.guide").update({
+            documentId: newGuide.documentId,
+            data: { tags: generatedTags } as any,
+          });
+
+          console.log(`    💚 УСПЕШНО сохранен как гайд`);
+
+          results.success.push({
+            pinId,
+            guideId: newGuide.documentId,
+            tagsCount: generatedTags.length,
+          });
+
+        } catch (error) {
+          console.log(`    ❌ Ошибка: ${error.message}`);
+          results.errors.push({
+            pinId: pin.id,
+            error: error.message || "Неизвестная ошибка",
+          });
+        }
+      }
+
+      // ✅ Финальная статистика
+      console.log("\n" + "=".repeat(60));
+      console.log("📊 ИТОГОВАЯ СТАТИСТИКА:");
+      console.log("=".repeat(60));
+      console.log(`📥 Всего загружено пинов: ${allPins.length}`);
+      console.log(`💚 Успешно сохранено: ${results.success.length}`);
+      console.log(`⏭️ Пропущено (дубликаты): ${results.skipped.length}`);
+      console.log(`❌ Ошибок: ${results.errors.length}`);
+      console.log("=".repeat(60) + "\n");
+
+      return ctx.send({
+        success: true,
+        results,
+        summary: {
+          total: allPins.length,
+          saved: results.success.length,
+          skipped: results.skipped.length,
+          errors: results.errors.length,
+        },
+      });
+    } catch (error) {
+      console.error("\n❌ КРИТИЧЕСКАЯ ОШИБКА массового сохранения:", error);
+      return ctx.throw(500, "Ошибка при массовом сохранении пинов", {
+        error: error.message,
+      });
+    }
+  },
 };

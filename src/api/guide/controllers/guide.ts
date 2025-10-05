@@ -33,14 +33,23 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
       pagination: false // Получаем все для сортировки
     })
 
-    // Сортируем по количеству креативов (убывание)
-    const sortedGuides = allGuides
-      .map((guide: any) => ({
-        ...guide,
-        creationsCount: guide.creations?.length || 0
-      }))
-      .filter((guide: any) => guide.creationsCount > 0) // Только с креативами
-      .sort((a: any, b: any) => b.creationsCount - a.creationsCount)
+    // Добавляем creationsCount ко всем гайдам
+    const guidesWithCount = allGuides.map((guide: any) => ({
+      ...guide,
+      creationsCount: guide.creations?.length || 0
+    }))
+
+    // Разделяем на гайды с креативами и без
+    const guidesWithCreations = guidesWithCount
+      .filter((guide: any) => guide.creationsCount > 0)
+      .sort((a: any, b: any) => b.creationsCount - a.creationsCount) // Сортируем по убыванию
+
+    const guidesWithoutCreations = guidesWithCount
+      .filter((guide: any) => guide.creationsCount === 0)
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) // По дате создания
+
+    // Объединяем: сначала с креативами, потом без
+    const sortedGuides = [...guidesWithCreations, ...guidesWithoutCreations]
 
     // Удаляем поле creations, но оставляем creationsCount для фронтенда
     const result = sortedGuides.map((guide: any) => {
