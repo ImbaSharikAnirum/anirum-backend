@@ -395,10 +395,26 @@ module.exports = {
             continue;
           }
 
-          // Получаем URL изображения (максимальное качество)
-          const imageUrl = (pin.media?.images?.['1200x'] as any)?.url ||
-                          (pin.media?.images?.['736x'] as any)?.url ||
-                          (Object.values(pin.media?.images || {})[0] as any)?.url;
+          // Получаем URL изображения (приоритет: оригинал → максимальное качество)
+          let imageUrl = null;
+          let imageSize = 'unknown';
+
+          if ((pin.media?.images?.['originals'] as any)?.url) {
+            imageUrl = (pin.media?.images?.['originals'] as any)?.url;
+            imageSize = 'originals (оригинал)';
+          } else if ((pin.media?.images?.['1200x'] as any)?.url) {
+            imageUrl = (pin.media?.images?.['1200x'] as any)?.url;
+            imageSize = '1200x (высокое)';
+          } else if ((pin.media?.images?.['736x'] as any)?.url) {
+            imageUrl = (pin.media?.images?.['736x'] as any)?.url;
+            imageSize = '736x (среднее)';
+          } else {
+            const fallbackImage = Object.values(pin.media?.images || {})[0] as any;
+            if (fallbackImage?.url) {
+              imageUrl = fallbackImage.url;
+              imageSize = 'fallback';
+            }
+          }
 
           if (!imageUrl) {
             console.log(`    ❌ Ошибка: изображение недоступно`);
@@ -410,7 +426,7 @@ module.exports = {
           }
 
           // Загружаем изображение через прокси
-          console.log(`    📥 Загрузка изображения...`);
+          console.log(`    📥 Загрузка изображения (размер: ${imageSize})...`);
 
           const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(imageUrl)}`;
           const imageResponse = await fetch(proxyUrl);
@@ -483,6 +499,7 @@ module.exports = {
             pinId,
             guideId: newGuide.documentId,
             tagsCount: generatedTags.length,
+            imageSize,
           });
 
         } catch (error) {
