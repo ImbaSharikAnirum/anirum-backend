@@ -441,22 +441,46 @@ module.exports = {
             throw new Error(`Неверный тип файла: ${blob.type}`);
           }
 
-          const fileName = `pinterest-pin-${pinId}-${Date.now()}.${blob.type.split('/')[1] || 'jpg'}`;
           const buffer = Buffer.from(await blob.arrayBuffer());
+          const fileName = `pinterest-pin-${pinId}-${Date.now()}.${blob.type.split('/')[1] || 'jpg'}`;
 
-          // Загружаем в Strapi
-          const uploadedFiles = await strapi.plugins.upload.services.upload.upload({
-            data: {},
-            files: {
-              path: buffer,
-              name: fileName,
-              type: blob.type,
-              size: buffer.length,
-            },
-          });
+          // Strapi 5 требует временный файл на диске
+          const fs = require('fs');
+          const path = require('path');
+          const os = require('os');
 
-          const imageId = uploadedFiles[0].id;
-          console.log(`    ✅ Изображение загружено (ID: ${imageId})`);
+          const tempDir = os.tmpdir();
+          const tempFilePath = path.join(tempDir, fileName);
+
+          let imageId: number;
+          try {
+            // Сохраняем во временный файл
+            fs.writeFileSync(tempFilePath, buffer);
+            const stats = fs.statSync(tempFilePath);
+
+            // Загружаем в Strapi через upload service (Strapi 5 API)
+            const uploadedFiles = await strapi.plugins.upload.services.upload.upload({
+              data: {},
+              files: {
+                filepath: tempFilePath,           // Strapi 5: filepath вместо path
+                originalFilename: fileName,       // Strapi 5: originalFilename вместо name
+                mimetype: blob.type,              // Strapi 5: mimetype вместо type
+                size: stats.size,
+              },
+            });
+
+            imageId = uploadedFiles[0].id;
+            console.log(`    ✅ Изображение загружено (ID: ${imageId})`);
+          } finally {
+            // Удаляем временный файл
+            if (fs.existsSync(tempFilePath)) {
+              try {
+                fs.unlinkSync(tempFilePath);
+              } catch (unlinkError) {
+                console.error(`    ⚠️ Ошибка удаления временного файла: ${unlinkError.message}`);
+              }
+            }
+          }
 
           // Создаем гайд БЕЗ тегов
           const newGuide = await strapi.documents("api::guide.guide").create({
