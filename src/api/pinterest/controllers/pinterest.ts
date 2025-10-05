@@ -304,12 +304,7 @@ module.exports = {
       return ctx.unauthorized("Pinterest не подключен");
     }
 
-    console.log("🚀 [SAVE ALL PINS] Начало массового сохранения пинов");
-    console.log(`👤 Менеджер: ${user.username} (${user.documentId})`);
-
     try {
-      // ✅ Шаг 1: Загружаем ВСЕ пины с Pinterest API с пагинацией
-      console.log("\n📥 Загрузка всех пинов с Pinterest API...");
       let allPins = [];
       let bookmark = null;
       let pageNumber = 1;
@@ -318,8 +313,6 @@ module.exports = {
         const url = `https://api.pinterest.com/v5/pins?page_size=100${
           bookmark ? `&bookmark=${bookmark}` : ""
         }`;
-
-        console.log(`  📄 Страница ${pageNumber}: Запрос к Pinterest API...`);
 
         const response = await fetch(url, {
           method: "GET",
@@ -331,15 +324,11 @@ module.exports = {
         });
 
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`  ❌ Ошибка Pinterest API: ${response.status} - ${errorText}`);
           throw new Error(`Pinterest API error: ${response.status}`);
         }
 
         const data = await response.json() as any;
         const pageItems = data.items || [];
-
-        console.log(`  ✅ Загружено ${pageItems.length} пинов (страница ${pageNumber})`);
 
         allPins.push(...pageItems);
         bookmark = data.bookmark;
@@ -347,10 +336,7 @@ module.exports = {
 
       } while (bookmark);
 
-      console.log(`\n✨ Всего загружено пинов: ${allPins.length}`);
-
       if (allPins.length === 0) {
-        console.log("⚠️ Нет пинов для сохранения");
         return ctx.send({
           success: true,
           results: { success: [], skipped: [], errors: [] },
@@ -358,35 +344,24 @@ module.exports = {
         });
       }
 
-      // ✅ Шаг 2: Обрабатываем каждый пин
-      console.log("\n💾 Начало сохранения пинов как гайдов...");
-
       const results = {
         success: [],
         skipped: [],
         errors: [],
       };
 
-      let processedCount = 0;
-
       for (const pin of allPins) {
-        processedCount++;
-
         try {
           const pinId = pin.id;
           const pinLink = `https://www.pinterest.com/pin/${pinId}/`;
           const title = pin.title || pin.note || "Pinterest Pin";
           const description = pin.description || "";
 
-          console.log(`\n  [${processedCount}/${allPins.length}] Обработка пина ${pinId}`);
-
-          // Проверка дубликатов
           const existingGuide = await strapi.documents("api::guide.guide").findFirst({
             filters: { link: pinLink } as any,
           });
 
           if (existingGuide) {
-            console.log(`    ⏭️ Пропущен (уже существует как гайд ${existingGuide.documentId})`);
             results.skipped.push({
               pinId,
               reason: "Уже существует",
@@ -395,7 +370,6 @@ module.exports = {
             continue;
           }
 
-          // Получаем URL изображения (приоритет: оригинал → максимальное качество)
           let imageUrl = null;
           let imageSize = 'unknown';
 
@@ -417,16 +391,12 @@ module.exports = {
           }
 
           if (!imageUrl) {
-            console.log(`    ❌ Ошибка: изображение недоступно`);
             results.errors.push({
               pinId,
               error: "Изображение недоступно",
             });
             continue;
           }
-
-          // Загружаем изображение через прокси
-          console.log(`    📥 Загрузка изображения (размер: ${imageSize})...`);
 
           const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(imageUrl)}`;
           const imageResponse = await fetch(proxyUrl);
@@ -470,19 +440,16 @@ module.exports = {
             });
 
             imageId = uploadedFiles[0].id;
-            console.log(`    ✅ Изображение загружено (ID: ${imageId})`);
           } finally {
-            // Удаляем временный файл
             if (fs.existsSync(tempFilePath)) {
               try {
                 fs.unlinkSync(tempFilePath);
               } catch (unlinkError) {
-                console.error(`    ⚠️ Ошибка удаления временного файла: ${unlinkError.message}`);
+                // Игнорируем ошибки удаления временного файла
               }
             }
           }
 
-          // Создаем гайд БЕЗ тегов
           const newGuide = await strapi.documents("api::guide.guide").create({
             data: {
               title,
@@ -496,28 +463,20 @@ module.exports = {
             populate: ["image"],
           });
 
-          console.log(`    📝 Гайд создан (ID: ${newGuide.documentId})`);
-
-          // Генерируем теги по изображению
           let generatedTags = [];
           try {
             const generatedImageUrl = newGuide?.image?.url;
             if (generatedImageUrl) {
-              console.log(`    🏷️ Генерация тегов...`);
               generatedTags = await generateTagsFromImage(generatedImageUrl);
-              console.log(`    ✅ Сгенерировано тегов: ${generatedTags.length}`);
             }
           } catch (tagError) {
-            console.log(`    ⚠️ Ошибка генерации тегов (продолжаем без тегов)`);
+            // Игнорируем ошибки генерации тегов
           }
 
-          // Обновляем гайд с тегами
           await strapi.documents("api::guide.guide").update({
             documentId: newGuide.documentId,
             data: { tags: generatedTags } as any,
           });
-
-          console.log(`    💚 УСПЕШНО сохранен как гайд`);
 
           results.success.push({
             pinId,
@@ -527,23 +486,12 @@ module.exports = {
           });
 
         } catch (error) {
-          console.log(`    ❌ Ошибка: ${error.message}`);
           results.errors.push({
             pinId: pin.id,
             error: error.message || "Неизвестная ошибка",
           });
         }
       }
-
-      // ✅ Финальная статистика
-      console.log("\n" + "=".repeat(60));
-      console.log("📊 ИТОГОВАЯ СТАТИСТИКА:");
-      console.log("=".repeat(60));
-      console.log(`📥 Всего загружено пинов: ${allPins.length}`);
-      console.log(`💚 Успешно сохранено: ${results.success.length}`);
-      console.log(`⏭️ Пропущено (дубликаты): ${results.skipped.length}`);
-      console.log(`❌ Ошибок: ${results.errors.length}`);
-      console.log("=".repeat(60) + "\n");
 
       return ctx.send({
         success: true,
@@ -556,7 +504,6 @@ module.exports = {
         },
       });
     } catch (error) {
-      console.error("\n❌ КРИТИЧЕСКАЯ ОШИБКА массового сохранения:", error);
       return ctx.throw(500, "Ошибка при массовом сохранении пинов", {
         error: error.message,
       });
