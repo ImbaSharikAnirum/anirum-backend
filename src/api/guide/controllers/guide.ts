@@ -48,7 +48,6 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
         })
 
         totalProcessed++
-        console.log(`    ✅ "${guide.title}": creationsCount = ${creations.length}`)
       }
 
       if (guidesPage.length < 100) {
@@ -102,7 +101,6 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
             })
 
             totalCreationsProcessed++
-            console.log(`    ✅ Creation ${creation.documentId}: pinterest_id = ${pinterestId}`)
           }
         }
       }
