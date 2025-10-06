@@ -13,54 +13,7 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
   async find(ctx: any) {
     const { query } = ctx
 
-    // 🔧 ОДНОРАЗОВАЯ МИГРАЦИЯ: Синхронизация creationsCount для всех гайдов
-    // TODO: Удалить этот блок после первого запуска
-    console.log('🔧 Запуск одноразовой миграции creationsCount...')
-
-    let migrationPage = 1
-    let hasMore = true
-    let totalProcessed = 0
-
-    while (hasMore) {
-      const guidesPage = await strapi.documents('api::guide.guide').findMany({
-        start: (migrationPage - 1) * 100,
-        limit: 100
-      })
-
-      if (!guidesPage || guidesPage.length === 0) {
-        hasMore = false
-        break
-      }
-
-      console.log(`  📄 Обработка страницы ${migrationPage} (${guidesPage.length} гайдов)...`)
-
-      for (const guide of guidesPage) {
-        const creations = await strapi.documents('api::creation.creation').findMany({
-          filters: { guide: { documentId: { $eq: guide.documentId } } },
-          fields: ['id'],
-          start: 0,
-          limit: 9999
-        })
-
-        await strapi.documents('api::guide.guide').update({
-          documentId: guide.documentId,
-          data: { creationsCount: creations.length }
-        })
-
-        totalProcessed++
-      }
-
-      if (guidesPage.length < 100) {
-        hasMore = false
-      } else {
-        migrationPage++
-      }
-    }
-
-    console.log(`✨ Миграция creationsCount завершена! Обработано гайдов: ${totalProcessed}\n`)
-    // END MIGRATION creationsCount
-
-    // 🔧 ОДНОРАЗОВАЯ МИГРАЦИЯ 2: Извлечение pinterest_id из guide.link для Creation
+    // 🔧 ОДНОРАЗОВАЯ МИГРАЦИЯ: Извлечение pinterest_id из guide.link для Creation
     // TODO: Удалить этот блок после первого запуска
     console.log('🔧 Запуск миграции pinterest_id для Creation...')
 
