@@ -158,13 +158,16 @@ export default factories.createCoreService('api::guide.guide', ({ strapi }) => (
 
     const total = parseInt(countResult.rows?.[0]?.total || countResult[0]?.total || 0)
 
+    // Возвращаем в формате Strapi API (data + meta)
     return {
-      results: guides,
-      pagination: {
-        page,
-        pageSize,
-        pageCount: Math.ceil(total / pageSize),
-        total
+      data: guides,
+      meta: {
+        pagination: {
+          page,
+          pageSize,
+          pageCount: Math.ceil(total / pageSize),
+          total
+        }
       }
     }
   }

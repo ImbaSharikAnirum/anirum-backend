@@ -277,7 +277,13 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
         sort: { createdAt: 'desc' }
       })
 
-      return result
+      // Возвращаем в консистентном формате (data + meta)
+      return {
+        data: result.results,
+        meta: {
+          pagination: result.pagination
+        }
+      }
 
     } catch (error) {
       console.error('Ошибка поиска гайдов:', error)
