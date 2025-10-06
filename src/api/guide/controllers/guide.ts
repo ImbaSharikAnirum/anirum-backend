@@ -42,6 +42,12 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
       }
     })
 
+    // 🔍 DEBUG: Выводим все гайды с их creationsCount
+    console.log('🔍 All guides with creationsCount:')
+    result.results.forEach((guide: any, index: number) => {
+      console.log(`  ${index + 1}. "${guide.title}" - creationsCount: ${guide.creationsCount ?? 'NULL'}`)
+    })
+
     // findPage возвращает { results: [], pagination: {} }
     return {
       data: result.results,
