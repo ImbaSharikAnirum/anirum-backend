@@ -211,14 +211,14 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
             if (enhancedTags.length > 0) {
               console.log(`🤖 AI enhanced search "${query}" → ${enhancedTags.length} tags:`, enhancedTags)
 
-              // Пробуем старый подход из Strapi 4: $containsi для каждого тега через $or
-              const tagConditions = enhancedTags.map(tag => ({
-                tags: { $containsi: tag }
-              }))
+              // Используем прямой SQL для поиска по JSONB массиву
+              const result = await strapi.service('api::guide.guide').searchByTagsSQL(
+                enhancedTags,
+                parseInt(page as any),
+                parseInt(pageSize as any)
+              )
 
-              searchConditions.push(...tagConditions)
-
-              console.log(`✅ Search with $containsi for ${enhancedTags.length} tags`)
+              return result
 
             } else {
               console.log(`⚠️ AI returned no tags, fallback to text search`)
