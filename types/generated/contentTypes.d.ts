@@ -523,6 +523,8 @@ export interface ApiGuideGuide extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    creations: Schema.Attribute.Relation<'oneToMany', 'api::creation.creation'>;
+    creationsCount: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
     image: Schema.Attribute.Media<'images'>;
     link: Schema.Attribute.String;
     locale: Schema.Attribute.String & Schema.Attribute.Private;

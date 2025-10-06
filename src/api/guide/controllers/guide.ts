@@ -13,9 +13,15 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
   async find(ctx: any) {
     const { query } = ctx
 
-    // Получаем гайды с нативной сортировкой по creationsCount
-    const result = await strapi.documents('api::guide.guide').findMany({
+    // Получаем параметры пагинации из query
+    const page = parseInt(query.pagination?.page) || 1
+    const pageSize = parseInt(query.pagination?.pageSize) || 25
+
+    // Получаем гайды с нативной сортировкой по creationsCount и пагинацией
+    const result = await strapi.entityService.findPage('api::guide.guide', {
       ...query,
+      page,
+      pageSize,
       filters: {
         ...query.filters,
       } as any,
@@ -36,7 +42,13 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
       }
     })
 
-    return this.transformResponse(result)
+    // findPage возвращает { results: [], pagination: {} }
+    return {
+      data: result.results,
+      meta: {
+        pagination: result.pagination
+      }
+    }
   },
 
   /**
