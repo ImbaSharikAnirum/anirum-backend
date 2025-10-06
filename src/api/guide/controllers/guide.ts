@@ -24,6 +24,7 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
       pageSize,
       filters: {
         ...query.filters,
+        publishedAt: { $null: true } // Только драфты (исключаем опубликованные дубликаты)
       } as any,
       sort: {
         creationsCount: 'desc', // Сортировка по счетчику (эффективно через индекс)
