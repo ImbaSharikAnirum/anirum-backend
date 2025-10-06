@@ -120,9 +120,25 @@ export default factories.createCoreService('api::guide.guide', ({ strapi }) => (
     `, [...tagParams, pageSize, offset])
 
     // PostgreSQL возвращает result.rows
-    const guides = result.rows || result
+    let guides = result.rows || result
 
     console.log(`✅ Found ${guides.length} guides via SQL`)
+
+    // Трансформируем snake_case в camelCase для фронтенда
+    guides = guides.map((guide: any) => ({
+      id: guide.id,
+      documentId: guide.document_id,
+      title: guide.title,
+      text: guide.text,
+      link: guide.link,
+      pinterest_id: guide.pinterest_id,
+      tags: guide.tags,
+      createdAt: guide.created_at,
+      updatedAt: guide.updated_at,
+      publishedAt: guide.published_at
+    }))
+
+    console.log(`📦 First guide sample:`, guides[0]?.title, guides[0]?.tags?.slice(0, 3))
 
     // Подсчитываем total для pagination
     const countResult = await db.raw(`
