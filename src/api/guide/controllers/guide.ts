@@ -202,7 +202,7 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
       } else {
         // Поиск по тегам и тексту
         const searchConditions = []
-
+        console.log('Search query:', query)
         if (query.trim()) {
           // 🤖 AI обработка запроса → массив связанных английских тегов
           try {
