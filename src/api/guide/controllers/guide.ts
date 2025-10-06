@@ -240,13 +240,11 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
 
         // Дополнительные теги от пользователя (если есть)
         if (tags.length > 0) {
-          // Также используем SQL для пользовательских тегов
-          const result = await strapi.service('api::guide.guide').searchByTags(
-            tags,
-            parseInt(page as any),
-            parseInt(pageSize as any)
-          )
-          return result
+          tags.forEach(tag => {
+            searchConditions.push({
+              tags: { $containsi: tag }
+            })
+          })
         }
 
         if (searchConditions.length > 0) {
