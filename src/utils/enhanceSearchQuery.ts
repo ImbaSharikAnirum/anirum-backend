@@ -43,7 +43,6 @@ Reply with only a comma-separated list of tags.`,
           content: `Generate related search tags for: "${query}"`,
         },
       ],
-      max_tokens: 100,
     });
 
     const tagString = response.choices[0].message.content?.trim() || "";
