@@ -13,6 +13,110 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
   async find(ctx: any) {
     const { query } = ctx
 
+    // 🔧 ОДНОРАЗОВАЯ МИГРАЦИЯ: Синхронизация creationsCount для всех гайдов
+    // TODO: Удалить этот блок после первого запуска
+    console.log('🔧 Запуск одноразовой миграции creationsCount...')
+
+    let migrationPage = 1
+    let hasMore = true
+    let totalProcessed = 0
+
+    while (hasMore) {
+      const guidesPage = await strapi.documents('api::guide.guide').findMany({
+        start: (migrationPage - 1) * 100,
+        limit: 100
+      })
+
+      if (!guidesPage || guidesPage.length === 0) {
+        hasMore = false
+        break
+      }
+
+      console.log(`  📄 Обработка страницы ${migrationPage} (${guidesPage.length} гайдов)...`)
+
+      for (const guide of guidesPage) {
+        const creations = await strapi.documents('api::creation.creation').findMany({
+          filters: { guide: { documentId: { $eq: guide.documentId } } },
+          fields: ['id'],
+          start: 0,
+          limit: 9999
+        })
+
+        await strapi.documents('api::guide.guide').update({
+          documentId: guide.documentId,
+          data: { creationsCount: creations.length }
+        })
+
+        totalProcessed++
+        console.log(`    ✅ "${guide.title}": creationsCount = ${creations.length}`)
+      }
+
+      if (guidesPage.length < 100) {
+        hasMore = false
+      } else {
+        migrationPage++
+      }
+    }
+
+    console.log(`✨ Миграция creationsCount завершена! Обработано гайдов: ${totalProcessed}\n`)
+    // END MIGRATION creationsCount
+
+    // 🔧 ОДНОРАЗОВАЯ МИГРАЦИЯ 2: Извлечение pinterest_id из guide.link для Creation
+    // TODO: Удалить этот блок после первого запуска
+    console.log('🔧 Запуск миграции pinterest_id для Creation...')
+
+    let creationMigrationPage = 1
+    let hasMoreCreations = true
+    let totalCreationsProcessed = 0
+
+    while (hasMoreCreations) {
+      const creationsPage = await strapi.documents('api::creation.creation').findMany({
+        filters: {
+          $or: [
+            { pinterest_id: { $null: true } },
+            { pinterest_id: '' }
+          ]
+        } as any,
+        populate: ['guide'],
+        start: (creationMigrationPage - 1) * 100,
+        limit: 100
+      })
+
+      if (!creationsPage || creationsPage.length === 0) {
+        hasMoreCreations = false
+        break
+      }
+
+      console.log(`  📄 Обработка страницы ${creationMigrationPage} (${creationsPage.length} creation)...`)
+
+      for (const creation of creationsPage) {
+        if (creation.guide?.link) {
+          // Извлекаем pinterest_id из ссылки вида https://www.pinterest.com/pin/646548090292561581/
+          const match = creation.guide.link.match(/\/pin\/(\d+)/)
+          if (match && match[1]) {
+            const pinterestId = match[1]
+
+            await strapi.documents('api::creation.creation').update({
+              documentId: creation.documentId,
+              data: { pinterest_id: pinterestId }
+            })
+
+            totalCreationsProcessed++
+            console.log(`    ✅ Creation ${creation.documentId}: pinterest_id = ${pinterestId}`)
+          }
+        }
+      }
+
+      if (creationsPage.length < 100) {
+        hasMoreCreations = false
+      } else {
+        creationMigrationPage++
+      }
+    }
+
+    console.log(`✨ Миграция pinterest_id завершена! Обработано creation: ${totalCreationsProcessed}\n`)
+    // END MIGRATION pinterest_id
+
     // Получаем параметры пагинации из query
     const page = parseInt(query.pagination?.page) || 1
     const pageSize = parseInt(query.pagination?.pageSize) || 25
@@ -40,12 +144,6 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
           fields: ['id']
         }
       }
-    })
-
-    // 🔍 DEBUG: Выводим все гайды с их creationsCount
-    console.log('🔍 All guides with creationsCount:')
-    result.results.forEach((guide: any, index: number) => {
-      console.log(`  ${index + 1}. "${guide.title}" - creationsCount: ${guide.creationsCount ?? 'NULL'}`)
     })
 
     // findPage возвращает { results: [], pagination: {} }
