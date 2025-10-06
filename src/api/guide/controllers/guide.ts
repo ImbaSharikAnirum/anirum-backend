@@ -8,16 +8,21 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
 
   /**
    * Получить все гайды (с сортировкой по количеству креативов)
+   * Используем поле creationsCount для эффективной сортировки
    */
   async find(ctx: any) {
     const { query } = ctx
 
-    // Получаем все гайды с креативами
-    const allGuides = await strapi.entityService.findMany('api::guide.guide', {
+    // Получаем гайды с нативной сортировкой по creationsCount
+    const result = await strapi.documents('api::guide.guide').findMany({
       ...query,
       filters: {
         ...query.filters,
       } as any,
+      sort: {
+        creationsCount: 'desc', // Сортировка по счетчику (эффективно через индекс)
+        createdAt: 'desc'       // При равном счетчике - по дате
+      },
       populate: {
         image: {
           fields: ['url', 'alternativeText', 'formats']
@@ -27,33 +32,8 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
         },
         savedBy: {
           fields: ['id']
-        },
-        creations: true // Упрощенный синтаксис для подсчёта
-      },
-      pagination: false // Получаем все для сортировки
-    })
-
-    // Добавляем creationsCount ко всем гайдам
-    const guidesWithCount = allGuides.map((guide: any) => ({
-      ...guide,
-      creationsCount: guide.creations?.length || 0
-    }))
-
-    // Сортируем ВСЕ гайды по количеству креативов (от большего к меньшему)
-    // Гайды с 0 креативов будут в конце, но тоже будут выведены
-    const sortedGuides = guidesWithCount.sort((a: any, b: any) => {
-      // Сначала сортируем по количеству креативов (больше = выше)
-      if (b.creationsCount !== a.creationsCount) {
-        return b.creationsCount - a.creationsCount
+        }
       }
-      // Если количество креативов одинаковое - по дате создания (новее = выше)
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    })
-
-    // Удаляем поле creations, но оставляем creationsCount для фронтенда
-    const result = sortedGuides.map((guide: any) => {
-      const { creations, ...rest } = guide
-      return rest
     })
 
     return this.transformResponse(result)

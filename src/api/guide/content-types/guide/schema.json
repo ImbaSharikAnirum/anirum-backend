@@ -59,6 +59,11 @@
       "target": "api::creation.creation",
       "mappedBy": "guide"
     },
+    "creationsCount": {
+      "type": "integer",
+      "default": 0,
+      "required": false
+    },
     "createdAt": {
       "type": "datetime"
     },
