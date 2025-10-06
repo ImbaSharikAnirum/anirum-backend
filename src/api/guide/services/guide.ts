@@ -89,59 +89,6 @@ export default factories.createCoreService('api::guide.guide', ({ strapi }) => (
       .sort(([,a], [,b]) => (b as number) - (a as number))
       .slice(0, limit)
       .map(([tag, count]) => ({ tag, count }));
-  },
-
-  /**
-   * Поиск гайдов по тегам через прямой SQL запрос
-   * Использует PostgreSQL JSONB оператор @> для проверки вхождения элемента в массив
-   */
-  async searchByTags(tags: string[], page = 1, pageSize = 20) {
-    const db = strapi.db.connection;
-    const offset = (page - 1) * pageSize;
-
-    console.log(`🔍 SQL search for tags:`, tags);
-
-    // Прямой SQL запрос с PostgreSQL JSONB оператором @>
-    // tags @> '["head"]'::jsonb - проверяет, содержит ли массив tags элемент "head"
-    const tagConditions = tags.map((_, index) => `tags @> $${index + 1}::jsonb`).join(' OR ');
-
-    const query = `
-      SELECT *
-      FROM guides
-      WHERE approved = true
-        AND published_at IS NULL
-        AND (${tagConditions})
-      ORDER BY created_at DESC
-      LIMIT $${tags.length + 1}
-      OFFSET $${tags.length + 2}
-    `;
-
-    // Параметры: каждый тег оборачиваем в JSON массив ["tag"]
-    const params = [
-      ...tags.map(tag => JSON.stringify([tag])),
-      pageSize,
-      offset
-    ];
-
-    console.log(`📝 SQL query:`, query);
-    console.log(`📦 SQL params:`, params);
-
-    const results = await db.raw(query, params);
-
-    // PostgreSQL возвращает results.rows
-    const guides = results.rows || results;
-
-    console.log(`✅ Found ${guides.length} guides`);
-
-    return {
-      results: guides,
-      pagination: {
-        page,
-        pageSize,
-        pageCount: Math.ceil(guides.length / pageSize),
-        total: guides.length
-      }
-    };
   }
 
 }));
