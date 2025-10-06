@@ -202,19 +202,26 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
       } else {
         // Поиск по тегам и тексту
         const searchConditions = []
-        console.log('Search query:', query)
+        console.log('🔍 Search query:', query)
         if (query.trim()) {
           // 🤖 AI обработка запроса → массив связанных английских тегов
           try {
             const { enhancedTags } = await enhanceSearchQuery(query)
 
             if (enhancedTags.length > 0) {
-              console.log(`AI enhanced search "${query}" → tags:`, enhancedTags)
+              console.log(`🤖 AI enhanced search "${query}" → tags:`, enhancedTags)
+
               // Ищем гайды, у которых хотя бы один тег из AI списка
-              searchConditions.push({
-                tags: { $in: enhancedTags }
-              })
+              // Для JSON поля используем $contains для каждого тега через $or
+              const tagConditions = enhancedTags.map(tag => ({
+                tags: { $contains: tag }
+              }))
+
+              searchConditions.push({ $or: tagConditions })
+
+              console.log(`✅ Search conditions for ${enhancedTags.length} tags:`, JSON.stringify(tagConditions.slice(0, 3), null, 2))
             } else {
+              console.log(`⚠️ AI returned no tags, fallback to text search`)
               // Fallback: обычный текстовый поиск если AI не вернул теги
               searchConditions.push(
                 { title: { $containsi: query } },
@@ -222,7 +229,7 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
               )
             }
           } catch (aiError) {
-            console.error('AI search enhancement failed, using fallback:', aiError)
+            console.error('❌ AI search enhancement failed, using fallback:', aiError)
             // Fallback: обычный текстовый поиск при ошибке AI
             searchConditions.push(
               { title: { $containsi: query } },
