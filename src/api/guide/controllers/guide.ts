@@ -209,17 +209,17 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
             const { enhancedTags } = await enhanceSearchQuery(query)
 
             if (enhancedTags.length > 0) {
-              console.log(`🤖 AI enhanced search "${query}" → tags:`, enhancedTags)
+              console.log(`🤖 AI enhanced search "${query}" → ${enhancedTags.length} tags:`, enhancedTags)
 
-              // Ищем гайды, у которых хотя бы один тег из AI списка
-              // Для JSONB массива используем специальный оператор: проверяем каждый тег отдельно
+              // Пробуем старый подход из Strapi 4: $containsi для каждого тега через $or
               const tagConditions = enhancedTags.map(tag => ({
-                tags: { $jsonSupersetOf: [tag] }
+                tags: { $containsi: tag }
               }))
 
-              searchConditions.push({ $or: tagConditions })
+              searchConditions.push(...tagConditions)
 
-              console.log(`✅ Search conditions for ${enhancedTags.length} tags:`, JSON.stringify(tagConditions.slice(0, 3), null, 2))
+              console.log(`✅ Search with $containsi for ${enhancedTags.length} tags`)
+
             } else {
               console.log(`⚠️ AI returned no tags, fallback to text search`)
               // Fallback: обычный текстовый поиск если AI не вернул теги
@@ -240,11 +240,13 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
 
         // Дополнительные теги от пользователя (если есть)
         if (tags.length > 0) {
-          tags.forEach(tag => {
-            searchConditions.push({
-              tags: { $contains: tag }
-            })
-          })
+          // Также используем SQL для пользовательских тегов
+          const result = await strapi.service('api::guide.guide').searchByTags(
+            tags,
+            parseInt(page as any),
+            parseInt(pageSize as any)
+          )
+          return result
         }
 
         if (searchConditions.length > 0) {
