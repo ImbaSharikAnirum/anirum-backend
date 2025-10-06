@@ -248,9 +248,16 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
         }
 
         if (searchConditions.length > 0) {
-          filters = { ...filters, $or: searchConditions } as any
+          filters = {
+            $and: [
+              { publishedAt: { $null: true } }, // Драфты
+              { $or: searchConditions }         // Хотя бы один тег совпал
+            ]
+          } as any
         }
       }
+
+      console.log(`🔧 Final filters:`, JSON.stringify(filters, null, 2))
 
       const result = await strapi.entityService.findPage('api::guide.guide', {
         filters,
