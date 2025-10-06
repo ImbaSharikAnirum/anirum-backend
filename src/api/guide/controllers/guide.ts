@@ -13,65 +13,6 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
   async find(ctx: any) {
     const { query } = ctx
 
-    // 🔧 ОДНОРАЗОВАЯ МИГРАЦИЯ: Извлечение pinterest_id из guide.link для Guide
-    // TODO: Удалить этот блок после первого запуска
-    console.log('🔧 Запуск миграции pinterest_id для Guide...')
-
-    let guideMigrationPage = 1
-    let hasMoreGuides = true
-    let totalGuidesProcessed = 0
-
-    while (hasMoreGuides) {
-      const guidesPage = await strapi.documents('api::guide.guide').findMany({
-        filters: {
-          $and: [
-            { link: { $notNull: true } }, // Есть ссылка
-            {
-              $or: [
-                { pinterest_id: { $null: true } },
-                { pinterest_id: '' }
-              ]
-            }
-          ]
-        } as any,
-        start: (guideMigrationPage - 1) * 100,
-        limit: 100
-      })
-
-      if (!guidesPage || guidesPage.length === 0) {
-        hasMoreGuides = false
-        break
-      }
-
-      console.log(`  📄 Обработка страницы ${guideMigrationPage} (${guidesPage.length} guides)...`)
-
-      for (const guide of guidesPage) {
-        if (guide.link) {
-          // Извлекаем pinterest_id из ссылки вида https://www.pinterest.com/pin/646548090292561581/
-          const match = guide.link.match(/\/pin\/(\d+)/)
-          if (match && match[1]) {
-            const pinterestId = match[1]
-
-            await strapi.documents('api::guide.guide').update({
-              documentId: guide.documentId,
-              data: { pinterest_id: pinterestId }
-            })
-
-            totalGuidesProcessed++
-          }
-        }
-      }
-
-      if (guidesPage.length < 100) {
-        hasMoreGuides = false
-      } else {
-        guideMigrationPage++
-      }
-    }
-
-    console.log(`✨ Миграция pinterest_id завершена! Обработано guides: ${totalGuidesProcessed}\n`)
-    // END MIGRATION pinterest_id
-
     // Получаем параметры пагинации из query
     const page = parseInt(query.pagination?.page) || 1
     const pageSize = parseInt(query.pagination?.pageSize) || 25
