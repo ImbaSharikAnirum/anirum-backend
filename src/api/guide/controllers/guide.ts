@@ -212,9 +212,9 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
               console.log(`🤖 AI enhanced search "${query}" → tags:`, enhancedTags)
 
               // Ищем гайды, у которых хотя бы один тег из AI списка
-              // Для JSON поля используем $contains для каждого тега через $or
+              // Для JSONB массива используем специальный оператор: проверяем каждый тег отдельно
               const tagConditions = enhancedTags.map(tag => ({
-                tags: { $contains: tag }
+                tags: { $jsonSupersetOf: [tag] }
               }))
 
               searchConditions.push({ $or: tagConditions })
