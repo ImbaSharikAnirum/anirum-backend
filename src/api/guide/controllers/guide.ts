@@ -3,6 +3,7 @@
  */
 
 import { factories } from '@strapi/strapi'
+import { enhanceSearchQuery } from '../../../utils'
 
 export default factories.createCoreController('api::guide.guide', ({ strapi }) => ({
 
@@ -182,28 +183,55 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
     const { page = 1, pageSize = 20 } = ctx.query
 
     try {
-      let filters = { approved: true }
+      let filters = {
+        approved: true,
+        publishedAt: { $null: true } // Только драфты (исключаем опубликованные дубликаты)
+      }
 
       // Специальные запросы
       if (query === 'созданные гайды' && userId) {
         filters = {
-          users_permissions_user: { documentId: userId }
+          users_permissions_user: { documentId: userId },
+          publishedAt: { $null: true }
         } as any
       } else if (query === 'сохраненные' && userId) {
         filters = {
-          savedBy: { documentId: userId }
+          savedBy: { documentId: userId },
+          publishedAt: { $null: true }
         } as any
       } else {
         // Поиск по тегам и тексту
         const searchConditions = []
 
         if (query.trim()) {
-          searchConditions.push(
-            { title: { $containsi: query } },
-            { text: { $containsi: query } }
-          )
+          // 🤖 AI обработка запроса → массив связанных английских тегов
+          try {
+            const { enhancedTags } = await enhanceSearchQuery(query)
+
+            if (enhancedTags.length > 0) {
+              console.log(`AI enhanced search "${query}" → tags:`, enhancedTags)
+              // Ищем гайды, у которых хотя бы один тег из AI списка
+              searchConditions.push({
+                tags: { $in: enhancedTags }
+              })
+            } else {
+              // Fallback: обычный текстовый поиск если AI не вернул теги
+              searchConditions.push(
+                { title: { $containsi: query } },
+                { text: { $containsi: query } }
+              )
+            }
+          } catch (aiError) {
+            console.error('AI search enhancement failed, using fallback:', aiError)
+            // Fallback: обычный текстовый поиск при ошибке AI
+            searchConditions.push(
+              { title: { $containsi: query } },
+              { text: { $containsi: query } }
+            )
+          }
         }
 
+        // Дополнительные теги от пользователя (если есть)
         if (tags.length > 0) {
           tags.forEach(tag => {
             searchConditions.push({
