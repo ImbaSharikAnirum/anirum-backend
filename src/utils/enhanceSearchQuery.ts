@@ -5,8 +5,11 @@ const openai = new OpenAI({
 });
 
 /**
- * Обогащение поискового запроса связанными тегами с помощью GPT-5 nano
- * Помогает находить больше релевантных гайдов по семантике
+ * Обогащение поискового запроса 2-3 самыми релевантными тегами с помощью GPT-5 nano
+ * Фокусируется на точности поиска, а не полноте охвата
+ *
+ * @param query - Поисковый запрос (на русском или английском)
+ * @returns Массив из 2-3 самых релевантных английских тегов
  */
 export async function enhanceSearchQuery(
   query: string
@@ -21,22 +24,27 @@ export async function enhanceSearchQuery(
       messages: [
         {
           role: "system",
-          content: `You are an assistant for a drawing tutorial search system. Given a search query, generate 5-10 related lowercase English tags that would help find relevant drawing tutorials.
+          content: `You are an assistant for a drawing tutorial search system. Given a search query, generate ONLY 2-3 most relevant lowercase English tags for precise search.
 
-For example:
-- "нарисовать лицо" → face, head, portrait, features, eyes, nose, mouth, anatomy
-- "рука человека" → hand, fingers, anatomy, gesture, palm, arm
-- "перспектива" → perspective, depth, vanishing, point, horizon, 3d
+Rules:
+1. Return MAXIMUM 3 tags (2-3 is optimal)
+2. Focus on the MAIN subject/concept only
+3. Use specific terms, not generic ones
+4. Translate Russian → English directly
+5. Avoid synonyms - only the most essential tags
 
-Include:
-- Direct translations (русский → English)
-- Related objects and concepts
-- Synonyms and variations
-- Drawing techniques
+Examples:
+- "нарисовать лицо" → face, portrait
+- "рука человека" → hand, anatomy
+- "перспектива в рисунке" → perspective, depth
+- "как рисовать волосы" → hair, texture
+- "глаза аниме" → eyes, anime
+- "портрет карандашом" → portrait, pencil
 
-Avoid generic terms like 'art', 'drawing', 'tutorial', 'guide'.
+IMPORTANT: Return ONLY 2-3 tags maximum. More tags = less precise results.
+Avoid: 'art', 'drawing', 'tutorial', 'guide', 'sketch', 'illustration'.
 
-Reply with only a comma-separated list of tags.`,
+Reply with only a comma-separated list of 2-3 tags.`,
         },
         {
           role: "user",
@@ -50,9 +58,10 @@ Reply with only a comma-separated list of tags.`,
     const enhancedTags = tagString
       .split(",")
       .map((t) => t.trim().toLowerCase())
-      .filter((t) => t.length > 0 && t.length < 30);
+      .filter((t) => t.length > 0 && t.length < 30)
+      .slice(0, 3); // 🔧 Гарантируем максимум 3 тега для точности поиска
 
-    console.log(`Enhanced search "${query}" with ${enhancedTags.length} tags:`, enhancedTags);
+    console.log(`🎯 Enhanced search "${query}" → ${enhancedTags.length} tags:`, enhancedTags);
 
     return {
       originalQuery: query,

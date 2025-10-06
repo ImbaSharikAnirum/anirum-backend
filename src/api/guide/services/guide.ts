@@ -99,7 +99,7 @@ export default factories.createCoreService('api::guide.guide', ({ strapi }) => (
     const db = strapi.db.connection;
     const offset = (page - 1) * pageSize;
 
-    console.log(`🔍 SQL search for ${tags.length} tags:`, tags.slice(0, 3), '...')
+    console.log(`🔍 SQL search for ${tags.length} tags:`, tags)
 
     // Создаем условие: tags @> ? OR tags @> ? OR ...
     const tagConditions = tags.map(() => `tags @> ?::jsonb`).join(' OR ')
@@ -107,22 +107,35 @@ export default factories.createCoreService('api::guide.guide', ({ strapi }) => (
     // Параметры: каждый тег как JSON массив ["tag"]
     const tagParams = tags.map(tag => JSON.stringify([tag]))
 
-    console.log(`📝 SQL query sample: tags @> '["${tags[0]}"]' OR tags @> '["${tags[1]}"]' ...`)
+    // Подсчет совпадений для сортировки по релевантности
+    const matchCountExpr = tags.map(() => `CASE WHEN tags @> ?::jsonb THEN 1 ELSE 0 END`).join(' + ')
+
+    console.log(`📝 SQL query: OR search with relevance scoring`)
 
     const result = await db.raw(`
-      SELECT id, document_id, title, text, link, pinterest_id, created_at, updated_at, published_at, tags
+      SELECT
+        id, document_id, title, text, link, pinterest_id, created_at, updated_at, published_at, tags,
+        (${matchCountExpr}) as match_count
       FROM guides
       WHERE published_at IS NULL
         AND (${tagConditions})
-      ORDER BY created_at DESC
+      ORDER BY match_count DESC, created_at DESC
       LIMIT ?
       OFFSET ?
-    `, [...tagParams, pageSize, offset])
+    `, [...tagParams, ...tagParams, pageSize, offset])
 
     // PostgreSQL возвращает result.rows
     const rawGuides = result.rows || result
 
     console.log(`✅ Found ${rawGuides.length} guides via SQL`)
+
+    // Логируем топ-3 результата с релевантностью
+    if (rawGuides.length > 0) {
+      console.log(`🎯 Top 3 results with relevance:`)
+      rawGuides.slice(0, 3).forEach((g: any, i: number) => {
+        console.log(`  ${i + 1}. [${g.match_count}/${tags.length}] ${g.title || 'Untitled'} - tags:`, g.tags?.slice(0, 3))
+      })
+    }
 
     // Загружаем полные данные с populate для image, user через entityService
     const guideIds = rawGuides.map((g: any) => g.id)
@@ -142,11 +155,9 @@ export default factories.createCoreService('api::guide.guide', ({ strapi }) => (
       }
     })
 
-    // Сортируем в том же порядке, что и SQL результат
+    // Сортируем в том же порядке, что и SQL результат (по релевантности)
     const guidesMap = new Map(fullGuides.map((g: any) => [g.id, g]))
     const guides = guideIds.map(id => guidesMap.get(id)).filter(Boolean)
-
-    console.log(`📦 First guide:`, guides[0]?.title, 'has image:', !!guides[0]?.image)
 
     // Подсчитываем total для pagination
     const countResult = await db.raw(`
