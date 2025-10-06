@@ -120,25 +120,33 @@ export default factories.createCoreService('api::guide.guide', ({ strapi }) => (
     `, [...tagParams, pageSize, offset])
 
     // PostgreSQL возвращает result.rows
-    let guides = result.rows || result
+    const rawGuides = result.rows || result
 
-    console.log(`✅ Found ${guides.length} guides via SQL`)
+    console.log(`✅ Found ${rawGuides.length} guides via SQL`)
 
-    // Трансформируем snake_case в camelCase для фронтенда
-    guides = guides.map((guide: any) => ({
-      id: guide.id,
-      documentId: guide.document_id,
-      title: guide.title,
-      text: guide.text,
-      link: guide.link,
-      pinterest_id: guide.pinterest_id,
-      tags: guide.tags,
-      createdAt: guide.created_at,
-      updatedAt: guide.updated_at,
-      publishedAt: guide.published_at
-    }))
+    // Загружаем полные данные с populate для image, user через entityService
+    const guideIds = rawGuides.map((g: any) => g.id)
 
-    console.log(`📦 First guide sample:`, guides[0]?.title, guides[0]?.tags?.slice(0, 3))
+    const fullGuides = await strapi.entityService.findMany('api::guide.guide', {
+      filters: { id: { $in: guideIds } } as any,
+      populate: {
+        image: {
+          fields: ['url', 'alternativeText', 'formats']
+        },
+        users_permissions_user: {
+          fields: ['username', 'email']
+        },
+        savedBy: {
+          fields: ['id']
+        }
+      }
+    })
+
+    // Сортируем в том же порядке, что и SQL результат
+    const guidesMap = new Map(fullGuides.map((g: any) => [g.id, g]))
+    const guides = guideIds.map(id => guidesMap.get(id)).filter(Boolean)
+
+    console.log(`📦 First guide:`, guides[0]?.title, 'has image:', !!guides[0]?.image)
 
     // Подсчитываем total для pagination
     const countResult = await db.raw(`
