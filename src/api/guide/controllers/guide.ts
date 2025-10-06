@@ -184,7 +184,7 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
 
     try {
       let filters = {
-        approved: true,
+        // approved: true, // Временно отключено для теста
         publishedAt: { $null: true } // Только драфты (исключаем опубликованные дубликаты)
       }
 
