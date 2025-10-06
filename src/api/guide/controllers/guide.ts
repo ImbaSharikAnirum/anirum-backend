@@ -13,59 +13,63 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
   async find(ctx: any) {
     const { query } = ctx
 
-    // 🔧 ОДНОРАЗОВАЯ МИГРАЦИЯ: Извлечение pinterest_id из guide.link для Creation
+    // 🔧 ОДНОРАЗОВАЯ МИГРАЦИЯ: Извлечение pinterest_id из guide.link для Guide
     // TODO: Удалить этот блок после первого запуска
-    console.log('🔧 Запуск миграции pinterest_id для Creation...')
+    console.log('🔧 Запуск миграции pinterest_id для Guide...')
 
-    let creationMigrationPage = 1
-    let hasMoreCreations = true
-    let totalCreationsProcessed = 0
+    let guideMigrationPage = 1
+    let hasMoreGuides = true
+    let totalGuidesProcessed = 0
 
-    while (hasMoreCreations) {
-      const creationsPage = await strapi.documents('api::creation.creation').findMany({
+    while (hasMoreGuides) {
+      const guidesPage = await strapi.documents('api::guide.guide').findMany({
         filters: {
-          $or: [
-            { pinterest_id: { $null: true } },
-            { pinterest_id: '' }
+          $and: [
+            { link: { $notNull: true } }, // Есть ссылка
+            {
+              $or: [
+                { pinterest_id: { $null: true } },
+                { pinterest_id: '' }
+              ]
+            }
           ]
         } as any,
-        populate: ['guide'],
-        start: (creationMigrationPage - 1) * 100,
+        start: (guideMigrationPage - 1) * 100,
         limit: 100
       })
 
-      if (!creationsPage || creationsPage.length === 0) {
-        hasMoreCreations = false
+      if (!guidesPage || guidesPage.length === 0) {
+        hasMoreGuides = false
         break
       }
 
-      console.log(`  📄 Обработка страницы ${creationMigrationPage} (${creationsPage.length} creation)...`)
+      console.log(`  📄 Обработка страницы ${guideMigrationPage} (${guidesPage.length} guides)...`)
 
-      for (const creation of creationsPage) {
-        if (creation.guide?.link) {
+      for (const guide of guidesPage) {
+        if (guide.link) {
           // Извлекаем pinterest_id из ссылки вида https://www.pinterest.com/pin/646548090292561581/
-          const match = creation.guide.link.match(/\/pin\/(\d+)/)
+          const match = guide.link.match(/\/pin\/(\d+)/)
           if (match && match[1]) {
             const pinterestId = match[1]
 
-            await strapi.documents('api::creation.creation').update({
-              documentId: creation.documentId,
+            await strapi.documents('api::guide.guide').update({
+              documentId: guide.documentId,
               data: { pinterest_id: pinterestId }
             })
 
-            totalCreationsProcessed++
+            totalGuidesProcessed++
           }
         }
       }
 
-      if (creationsPage.length < 100) {
-        hasMoreCreations = false
+      if (guidesPage.length < 100) {
+        hasMoreGuides = false
       } else {
-        creationMigrationPage++
+        guideMigrationPage++
       }
     }
 
-    console.log(`✨ Миграция pinterest_id завершена! Обработано creation: ${totalCreationsProcessed}\n`)
+    console.log(`✨ Миграция pinterest_id завершена! Обработано guides: ${totalGuidesProcessed}\n`)
     // END MIGRATION pinterest_id
 
     // Получаем параметры пагинации из query
