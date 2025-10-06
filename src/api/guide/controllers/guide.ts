@@ -27,7 +27,8 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
       } as any,
       sort: {
         creationsCount: 'desc', // Сортировка по счетчику (эффективно через индекс)
-        createdAt: 'desc'       // При равном счетчике - по дате
+        createdAt: 'desc',      // При равном счетчике - по дате
+        id: 'desc'              // При равных значениях - по ID (детерминированный порядок)
       },
       populate: {
         image: {
