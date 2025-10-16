@@ -69,6 +69,12 @@
     },
     "updatedAt": {
       "type": "datetime"
+    },
+    "skills": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::skill.skill",
+      "mappedBy": "guides"
     }
   }
 }

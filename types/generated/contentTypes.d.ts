@@ -536,6 +536,7 @@ export interface ApiGuideGuide extends Struct.CollectionTypeSchema {
       'manyToMany',
       'plugin::users-permissions.user'
     >;
+    skills: Schema.Attribute.Relation<'manyToMany', 'api::skill.skill'>;
     tags: Schema.Attribute.JSON;
     text: Schema.Attribute.Text;
     title: Schema.Attribute.String & Schema.Attribute.Required;
@@ -696,6 +697,75 @@ export interface ApiReferralCodeReferralCode
       Schema.Attribute.Private;
     validFrom: Schema.Attribute.Date;
     validTo: Schema.Attribute.Date;
+  };
+}
+
+export interface ApiSkillTreeSkillTree extends Struct.CollectionTypeSchema {
+  collectionName: 'skill_trees';
+  info: {
+    displayName: 'SkillTree';
+    pluralName: 'skill-trees';
+    singularName: 'skill-tree';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    description: Schema.Attribute.Text;
+    image: Schema.Attribute.Media<'images' | 'files' | 'videos' | 'audios'>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::skill-tree.skill-tree'
+    > &
+      Schema.Attribute.Private;
+    owner: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
+    publishedAt: Schema.Attribute.DateTime;
+    skillEdges: Schema.Attribute.JSON;
+    skills: Schema.Attribute.Relation<'oneToMany', 'api::skill.skill'>;
+    title: Schema.Attribute.String;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiSkillSkill extends Struct.CollectionTypeSchema {
+  collectionName: 'skills';
+  info: {
+    displayName: 'skill';
+    pluralName: 'skills';
+    singularName: 'skill';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    guideEdges: Schema.Attribute.JSON;
+    guides: Schema.Attribute.Relation<'manyToMany', 'api::guide.guide'>;
+    image: Schema.Attribute.Media<'images' | 'files' | 'videos' | 'audios'>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<'oneToMany', 'api::skill.skill'> &
+      Schema.Attribute.Private;
+    position: Schema.Attribute.JSON;
+    publishedAt: Schema.Attribute.DateTime;
+    skill_tree: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::skill-tree.skill-tree'
+    >;
+    title: Schema.Attribute.String;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
   };
 }
 
@@ -1241,6 +1311,10 @@ export interface PluginUsersPermissionsUser
       'plugin::users-permissions.role'
     >;
     savedGuides: Schema.Attribute.Relation<'manyToMany', 'api::guide.guide'>;
+    skill_trees: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::skill-tree.skill-tree'
+    >;
     students: Schema.Attribute.Relation<'oneToMany', 'api::student.student'>;
     telegram_chat_id: Schema.Attribute.String;
     telegram_phone: Schema.Attribute.String;
@@ -1291,6 +1365,8 @@ declare module '@strapi/strapi' {
       'api::guide.guide': ApiGuideGuide;
       'api::invoice.invoice': ApiInvoiceInvoice;
       'api::referral-code.referral-code': ApiReferralCodeReferralCode;
+      'api::skill-tree.skill-tree': ApiSkillTreeSkillTree;
+      'api::skill.skill': ApiSkillSkill;
       'api::student.student': ApiStudentStudent;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;

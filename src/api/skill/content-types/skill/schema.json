@@ -1,0 +1,46 @@
+{
+  "kind": "collectionType",
+  "collectionName": "skills",
+  "info": {
+    "singularName": "skill",
+    "pluralName": "skills",
+    "displayName": "skill"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "image": {
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ],
+      "type": "media",
+      "multiple": false
+    },
+    "position": {
+      "type": "json"
+    },
+    "guides": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::guide.guide",
+      "inversedBy": "skills"
+    },
+    "guideEdges": {
+      "type": "json"
+    },
+    "skill_tree": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::skill-tree.skill-tree",
+      "inversedBy": "skills"
+    }
+  }
+}
