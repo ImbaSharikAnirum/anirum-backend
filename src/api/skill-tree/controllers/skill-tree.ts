@@ -51,6 +51,9 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
         return ctx.forbidden('Недостаточно прав для редактирования этого дерева')
       }
 
+      // Сохраняем числовой id дерева для связей
+      const treeNumericId = tree.id
+
       // Маппинг временных ID на реальные documentId
       const skillIdMap = new Map<string, string>()
       const guideIdMap = new Map<string, string>()
@@ -112,7 +115,7 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
           const createData: any = {
             title: skillData.title,
             position: skillData.position,
-            skill_tree: documentId,
+            skill_tree: treeNumericId,
           }
 
           if (imageId) {
