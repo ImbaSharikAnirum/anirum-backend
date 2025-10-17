@@ -55,223 +55,220 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
       const skillIdMap = new Map<string, string>()
       const guideIdMap = new Map<string, string>()
 
-      // Выполняем все операции в транзакции для атомарности
-      const result = await strapi.db.transaction(async ({ trx }) => {
-        // 2. Обработка удаленных навыков
-        for (const skillDocId of deletedSkills) {
-          await strapi.entityService.delete('api::skill.skill', skillDocId)
-        }
+      // 2. Обработка удаленных навыков
+      for (const skillDocId of deletedSkills) {
+        await strapi.entityService.delete('api::skill.skill', skillDocId)
+      }
 
-        // 3. Обработка навыков (создание/обновление) с изображениями
-        for (const skillData of skills) {
-          let imageId: number | undefined
+      // 3. Обработка навыков (создание/обновление) с изображениями
+      for (const skillData of skills) {
+        let imageId: number | undefined
 
-          // Обработка изображения (base64)
-          if (skillData.image && skillData.image.startsWith('data:image')) {
-            try {
-              // Конвертируем base64 в Buffer
-              const base64Data = skillData.image.split(',')[1]
-              const buffer = Buffer.from(base64Data, 'base64')
+        // Обработка изображения (base64)
+        if (skillData.image && skillData.image.startsWith('data:image')) {
+          try {
+            // Конвертируем base64 в Buffer
+            const base64Data = skillData.image.split(',')[1]
+            const buffer = Buffer.from(base64Data, 'base64')
 
-              // Определяем mime type
-              const mimeMatch = skillData.image.match(/data:([^;]+);/)
-              const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
-              const ext = mimeType.split('/')[1]
+            // Определяем mime type
+            const mimeMatch = skillData.image.match(/data:([^;]+);/)
+            const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
+            const ext = mimeType.split('/')[1]
 
-              // Загружаем файл через Upload plugin
-              const uploadedFiles = await strapi.plugins.upload.services.upload.upload({
-                data: {},
-                files: {
-                  path: buffer,
-                  name: `skill-${Date.now()}.${ext}`,
-                  type: mimeType,
-                  size: buffer.length,
-                },
-              })
-
-              imageId = uploadedFiles[0]?.id
-            } catch (uploadError) {
-              console.error('Ошибка загрузки изображения навыка:', uploadError)
-            }
-          }
-
-          if (skillData.documentId) {
-            // Обновляем существующий навык
-            const updateData: any = {
-              title: skillData.title,
-              position: skillData.position,
-            }
-
-            if (imageId) {
-              updateData.image = imageId
-            }
-
-            await strapi.entityService.update('api::skill.skill', skillData.documentId, {
-              data: updateData
+            // Загружаем файл через Upload plugin
+            const uploadedFiles = await strapi.plugins.upload.services.upload.upload({
+              data: {},
+              files: {
+                path: buffer,
+                name: `skill-${Date.now()}.${ext}`,
+                type: mimeType,
+                size: buffer.length,
+              },
             })
-          } else if (skillData.tempId) {
-            // Создаем новый навык
-            const createData: any = {
-              title: skillData.title,
-              position: skillData.position,
-              skill_tree: documentId,
-            }
 
-            if (imageId) {
-              createData.image = imageId
-            }
-
-            const createdSkill = await strapi.entityService.create('api::skill.skill', {
-              data: createData
-            }) as any
-
-            // Сохраняем маппинг
-            skillIdMap.set(skillData.tempId, createdSkill.documentId)
+            imageId = uploadedFiles[0]?.id
+          } catch (uploadError) {
+            console.error('Ошибка загрузки изображения навыка:', uploadError)
           }
         }
 
-        // 4. Обработка гайдов (создание/обновление) с изображениями
-        for (const guideData of guides) {
-          let imageId: number | undefined
-
-          // Обработка изображения гайда (base64)
-          if (guideData.image && guideData.image.startsWith('data:image')) {
-            try {
-              const base64Data = guideData.image.split(',')[1]
-              const buffer = Buffer.from(base64Data, 'base64')
-
-              const mimeMatch = guideData.image.match(/data:([^;]+);/)
-              const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
-              const ext = mimeType.split('/')[1]
-
-              const uploadedFiles = await strapi.plugins.upload.services.upload.upload({
-                data: {},
-                files: {
-                  path: buffer,
-                  name: `guide-${Date.now()}.${ext}`,
-                  type: mimeType,
-                  size: buffer.length,
-                },
-              })
-
-              imageId = uploadedFiles[0]?.id
-            } catch (uploadError) {
-              console.error('Ошибка загрузки изображения гайда:', uploadError)
-            }
+        if (skillData.documentId) {
+          // Обновляем существующий навык
+          const updateData: any = {
+            title: skillData.title,
+            position: skillData.position,
           }
 
-          // Определяем реальный skillId (с учетом маппинга)
-          const realSkillId = skillIdMap.get(guideData.skillId) || guideData.skillId
+          if (imageId) {
+            updateData.image = imageId
+          }
 
-          if (guideData.documentId) {
-            // Обновляем существующий гайд
-            const updateData: any = {
-              title: guideData.title,
-              text: guideData.text,
-              link: guideData.link,
-            }
+          await strapi.entityService.update('api::skill.skill', skillData.documentId, {
+            data: updateData
+          })
+        } else if (skillData.tempId) {
+          // Создаем новый навык
+          const createData: any = {
+            title: skillData.title,
+            position: skillData.position,
+            skill_tree: documentId,
+          }
 
-            if (imageId) {
-              updateData.image = imageId
-            }
+          if (imageId) {
+            createData.image = imageId
+          }
 
-            await strapi.entityService.update('api::guide.guide', guideData.documentId, {
-              data: updateData
+          const createdSkill = await strapi.entityService.create('api::skill.skill', {
+            data: createData
+          }) as any
+
+          // Сохраняем маппинг
+          skillIdMap.set(skillData.tempId, createdSkill.documentId)
+        }
+      }
+
+      // 4. Обработка гайдов (создание/обновление) с изображениями
+      for (const guideData of guides) {
+        let imageId: number | undefined
+
+        // Обработка изображения гайда (base64)
+        if (guideData.image && guideData.image.startsWith('data:image')) {
+          try {
+            const base64Data = guideData.image.split(',')[1]
+            const buffer = Buffer.from(base64Data, 'base64')
+
+            const mimeMatch = guideData.image.match(/data:([^;]+);/)
+            const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
+            const ext = mimeType.split('/')[1]
+
+            const uploadedFiles = await strapi.plugins.upload.services.upload.upload({
+              data: {},
+              files: {
+                path: buffer,
+                name: `guide-${Date.now()}.${ext}`,
+                type: mimeType,
+                size: buffer.length,
+              },
             })
-          } else if (guideData.tempId) {
-            // Создаем новый гайд
-            const createData: any = {
-              title: guideData.title,
-              text: guideData.text || '',
-              link: guideData.link || '',
-              approved: false,
-              users_permissions_user: user.id,
-            }
 
-            if (imageId) {
-              createData.image = imageId
-            }
-
-            const createdGuide = await strapi.entityService.create('api::guide.guide', {
-              data: createData
-            }) as any
-
-            // Сохраняем маппинг
-            guideIdMap.set(guideData.tempId, createdGuide.documentId)
-
-            // 5. Связываем гайд с навыком (many-to-many relation)
-            const skill = await strapi.entityService.findOne('api::skill.skill', realSkillId, {
-              populate: ['guides']
-            }) as any
-
-            // Собираем documentId существующих гайдов и добавляем новый
-            const existingGuideDocIds = (skill.guides || []).map((g: any) => g.documentId)
-            const updatedGuideDocIds = [...existingGuideDocIds, createdGuide.documentId]
-
-            await strapi.entityService.update('api::skill.skill', realSkillId, {
-              data: {
-                guides: updatedGuideDocIds
-              } as any
-            })
+            imageId = uploadedFiles[0]?.id
+          } catch (uploadError) {
+            console.error('Ошибка загрузки изображения гайда:', uploadError)
           }
         }
 
-        // 6. Обновляем guideEdges для каждого навыка
-        for (const skillData of skills) {
-          if (skillData.guideEdges && skillData.guideEdges.length > 0) {
-            // Заменяем временные ID гайдов на реальные
-            const updatedGuideEdges = skillData.guideEdges.map((edge: any) => ({
-              ...edge,
-              source: guideIdMap.get(edge.source) || edge.source,
-              target: guideIdMap.get(edge.target) || edge.target,
-            }))
+        // Определяем реальный skillId (с учетом маппинга)
+        const realSkillId = skillIdMap.get(guideData.skillId) || guideData.skillId
 
-            const realSkillDocId = skillIdMap.get(skillData.tempId) || skillData.documentId
-
-            await strapi.entityService.update('api::skill.skill', realSkillDocId, {
-              data: {
-                guideEdges: updatedGuideEdges
-              }
-            })
+        if (guideData.documentId) {
+          // Обновляем существующий гайд
+          const updateData: any = {
+            title: guideData.title,
+            text: guideData.text,
+            link: guideData.link,
           }
+
+          if (imageId) {
+            updateData.image = imageId
+          }
+
+          await strapi.entityService.update('api::guide.guide', guideData.documentId, {
+            data: updateData
+          })
+        } else if (guideData.tempId) {
+          // Создаем новый гайд
+          const createData: any = {
+            title: guideData.title,
+            text: guideData.text || '',
+            link: guideData.link || '',
+            approved: false,
+            users_permissions_user: user.id,
+          }
+
+          if (imageId) {
+            createData.image = imageId
+          }
+
+          const createdGuide = await strapi.entityService.create('api::guide.guide', {
+            data: createData
+          }) as any
+
+          // Сохраняем маппинг
+          guideIdMap.set(guideData.tempId, createdGuide.documentId)
+
+          // 5. Связываем гайд с навыком (many-to-many relation)
+          const skill = await strapi.entityService.findOne('api::skill.skill', realSkillId, {
+            populate: ['guides']
+          }) as any
+
+          // Собираем documentId существующих гайдов и добавляем новый
+          const existingGuideDocIds = (skill.guides || []).map((g: any) => g.documentId)
+          const updatedGuideDocIds = [...existingGuideDocIds, createdGuide.documentId]
+
+          await strapi.entityService.update('api::skill.skill', realSkillId, {
+            data: {
+              guides: updatedGuideDocIds
+            } as any
+          })
         }
+      }
 
-        // 7. Обновляем связи дерева (заменяем временные ID на реальные)
-        const updatedSkillEdges = skillEdges.map((edge: any) => ({
-          ...edge,
-          source: skillIdMap.get(edge.source) || edge.source,
-          target: skillIdMap.get(edge.target) || edge.target,
-        }))
+      // 6. Обновляем guideEdges для каждого навыка
+      for (const skillData of skills) {
+        if (skillData.guideEdges && skillData.guideEdges.length > 0) {
+          // Заменяем временные ID гайдов на реальные
+          const updatedGuideEdges = skillData.guideEdges.map((edge: any) => ({
+            ...edge,
+            source: guideIdMap.get(edge.source) || edge.source,
+            target: guideIdMap.get(edge.target) || edge.target,
+          }))
 
-        // 8. Обновляем дерево со связями
-        const updatedTree = await strapi.entityService.update('api::skill-tree.skill-tree', documentId, {
-          data: {
-            skillEdges: updatedSkillEdges
+          const realSkillDocId = skillIdMap.get(skillData.tempId) || skillData.documentId
+
+          await strapi.entityService.update('api::skill.skill', realSkillDocId, {
+            data: {
+              guideEdges: updatedGuideEdges
+            }
+          })
+        }
+      }
+
+      // 7. Обновляем связи дерева (заменяем временные ID на реальные)
+      const updatedSkillEdges = skillEdges.map((edge: any) => ({
+        ...edge,
+        source: skillIdMap.get(edge.source) || edge.source,
+        target: skillIdMap.get(edge.target) || edge.target,
+      }))
+
+      // 8. Обновляем дерево со связями
+      const updatedTree = await strapi.entityService.update('api::skill-tree.skill-tree', documentId, {
+        data: {
+          skillEdges: updatedSkillEdges
+        },
+        populate: {
+          image: true,
+          owner: {
+            fields: ['username', 'email']
           },
-          populate: {
-            image: true,
-            owner: {
-              fields: ['username', 'email']
-            },
-            skills: {
-              populate: {
-                image: true,
-                guides: {
-                  populate: {
-                    image: true
-                  }
+          skills: {
+            populate: {
+              image: true,
+              guides: {
+                populate: {
+                  image: true
                 }
               }
             }
           }
-        })
-
-        return {
-          tree: updatedTree,
-          skillIdMap: Object.fromEntries(skillIdMap),
-          guideIdMap: Object.fromEntries(guideIdMap)
         }
       })
+
+      const result = {
+        tree: updatedTree,
+        skillIdMap: Object.fromEntries(skillIdMap),
+        guideIdMap: Object.fromEntries(guideIdMap)
+      }
 
       return {
         data: result.tree,
