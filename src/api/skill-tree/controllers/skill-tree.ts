@@ -59,11 +59,13 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
       const guideIdMap = new Map<string, string>()
 
       // 2. Обработка удаленных навыков
+      console.log('Удаление навыков:', deletedSkills)
       for (const skillDocId of deletedSkills) {
         await strapi.entityService.delete('api::skill.skill', skillDocId)
       }
 
       // 3. Обработка навыков (создание/обновление) с изображениями
+      console.log('Обработка навыков, всего:', skills.length)
       for (const skillData of skills) {
         let imageId: number | undefined
 
@@ -98,6 +100,7 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
 
         if (skillData.documentId) {
           // Обновляем существующий навык
+          console.log('Обновление навыка:', skillData.documentId)
           const updateData: any = {
             title: skillData.title,
             position: skillData.position,
@@ -112,6 +115,7 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
           })
         } else if (skillData.tempId) {
           // Создаем новый навык
+          console.log('Создание навыка с treeNumericId:', treeNumericId)
           const createData: any = {
             title: skillData.title,
             position: skillData.position,
@@ -128,10 +132,12 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
 
           // Сохраняем маппинг
           skillIdMap.set(skillData.tempId, createdSkill.documentId)
+          console.log('Создан навык:', createdSkill.documentId)
         }
       }
 
       // 4. Обработка гайдов (создание/обновление) с изображениями
+      console.log('Обработка гайдов, всего:', guides.length)
       for (const guideData of guides) {
         let imageId: number | undefined
 
@@ -245,6 +251,7 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
       }))
 
       // 8. Обновляем дерево со связями
+      console.log('Обновление дерева с documentId:', documentId)
       const updatedTree = await strapi.entityService.update('api::skill-tree.skill-tree', documentId, {
         data: {
           skillEdges: updatedSkillEdges
