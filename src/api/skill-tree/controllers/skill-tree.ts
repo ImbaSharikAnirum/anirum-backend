@@ -3,6 +3,9 @@
  */
 
 import { factories } from '@strapi/strapi'
+import fs from 'fs'
+import path from 'path'
+import os from 'os'
 
 export default factories.createCoreController('api::skill-tree.skill-tree', ({ strapi }) => ({
 
@@ -73,8 +76,11 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
       for (const skillData of skills) {
         let imageId: number | undefined
 
+        console.log('Навык:', skillData.title, 'имеет изображение:', !!skillData.image, 'тип:', typeof skillData.image)
+
         // Обработка изображения (base64)
         if (skillData.image && skillData.image.startsWith('data:image')) {
+          const tempFilePath = path.join(os.tmpdir(), `skill-${Date.now()}.tmp`)
           try {
             // Конвертируем base64 в Buffer
             const base64Data = skillData.image.split(',')[1]
@@ -84,21 +90,35 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
             const mimeMatch = skillData.image.match(/data:([^;]+);/)
             const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
             const ext = mimeType.split('/')[1]
+            const fileName = `skill-${Date.now()}.${ext}`
 
-            // Загружаем файл через Upload plugin
+            // Сохраняем во временный файл
+            fs.writeFileSync(tempFilePath, buffer)
+            const stats = fs.statSync(tempFilePath)
+
+            // Загружаем файл через Upload plugin (Strapi 5)
             const uploadedFiles = await strapi.plugins.upload.services.upload.upload({
               data: {},
               files: {
-                path: buffer,
-                name: `skill-${Date.now()}.${ext}`,
-                type: mimeType,
-                size: buffer.length,
+                filepath: tempFilePath,
+                originalFilename: fileName,
+                mimetype: mimeType,
+                size: stats.size,
               },
             })
 
             imageId = uploadedFiles[0]?.id
           } catch (uploadError) {
             console.error('Ошибка загрузки изображения навыка:', uploadError)
+          } finally {
+            // Удаляем временный файл
+            if (fs.existsSync(tempFilePath)) {
+              try {
+                fs.unlinkSync(tempFilePath)
+              } catch (unlinkError) {
+                console.error('Ошибка удаления временного файла:', unlinkError)
+              }
+            }
           }
         }
 
@@ -147,6 +167,7 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
 
         // Обработка изображения гайда (base64)
         if (guideData.image && guideData.image.startsWith('data:image')) {
+          const tempFilePath = path.join(os.tmpdir(), `guide-${Date.now()}.tmp`)
           try {
             const base64Data = guideData.image.split(',')[1]
             const buffer = Buffer.from(base64Data, 'base64')
@@ -154,20 +175,35 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
             const mimeMatch = guideData.image.match(/data:([^;]+);/)
             const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
             const ext = mimeType.split('/')[1]
+            const fileName = `guide-${Date.now()}.${ext}`
 
+            // Сохраняем во временный файл
+            fs.writeFileSync(tempFilePath, buffer)
+            const stats = fs.statSync(tempFilePath)
+
+            // Загружаем файл через Upload plugin (Strapi 5)
             const uploadedFiles = await strapi.plugins.upload.services.upload.upload({
               data: {},
               files: {
-                path: buffer,
-                name: `guide-${Date.now()}.${ext}`,
-                type: mimeType,
-                size: buffer.length,
+                filepath: tempFilePath,
+                originalFilename: fileName,
+                mimetype: mimeType,
+                size: stats.size,
               },
             })
 
             imageId = uploadedFiles[0]?.id
           } catch (uploadError) {
             console.error('Ошибка загрузки изображения гайда:', uploadError)
+          } finally {
+            // Удаляем временный файл
+            if (fs.existsSync(tempFilePath)) {
+              try {
+                fs.unlinkSync(tempFilePath)
+              } catch (unlinkError) {
+                console.error('Ошибка удаления временного файла гайда:', unlinkError)
+              }
+            }
           }
         }
 
