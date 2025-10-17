@@ -204,13 +204,13 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
               populate: ['guides']
             }) as any
 
+            // Собираем ID существующих гайдов и добавляем новый
             const existingGuideIds = (skill.guides || []).map((g: any) => g.id)
+            const updatedGuideIds = [...existingGuideIds, createdGuide.id]
 
             await strapi.entityService.update('api::skill.skill', realSkillId, {
               data: {
-                guides: {
-                  connect: [createdGuide.id]
-                }
+                guides: updatedGuideIds
               }
             })
           }
