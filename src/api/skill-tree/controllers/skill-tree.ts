@@ -25,7 +25,7 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
    * }
    */
   async publish(ctx: any) {
-    const { documentId } = ctx.params
+    const { id } = ctx.params
     const user = ctx.state.user
 
     if (!user) {
@@ -36,9 +36,13 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
 
     try {
       // 1. Проверяем, что пользователь владелец дерева или менеджер
-      const tree = await strapi.entityService.findOne('api::skill-tree.skill-tree', documentId, {
+      console.log('=== PUBLISH START ===')
+      console.log('id from params:', id)
+      console.log('Загрузка дерева...')
+      const tree = await strapi.entityService.findOne('api::skill-tree.skill-tree', id, {
         populate: ['owner']
       }) as any
+      console.log('Дерево загружено, id:', tree?.id, 'documentId:', tree?.documentId)
 
       if (!tree) {
         return ctx.notFound('Дерево навыков не найдено')
@@ -251,8 +255,8 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
       }))
 
       // 8. Обновляем дерево со связями
-      console.log('Обновление дерева с documentId:', documentId)
-      const updatedTree = await strapi.entityService.update('api::skill-tree.skill-tree', documentId, {
+      console.log('Обновление дерева с id:', id)
+      const updatedTree = await strapi.entityService.update('api::skill-tree.skill-tree', id, {
         data: {
           skillEdges: updatedSkillEdges
         },

@@ -6,7 +6,7 @@ export default {
   routes: [
     {
       method: 'POST',
-      path: '/skill-trees/:documentId/publish',
+      path: '/skill-trees/:id/publish',
       handler: 'api::skill-tree.skill-tree.publish',
       config: {
         policies: [],
