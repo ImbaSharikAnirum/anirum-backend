@@ -43,9 +43,12 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
       console.log('id from params:', id)
       console.log('Загрузка дерева...')
       const tree = await strapi.entityService.findOne('api::skill-tree.skill-tree', id, {
-        populate: ['owner']
+        populate: {
+          owner: true,
+          skills: true
+        }
       }) as any
-      console.log('Дерево загружено, id:', tree?.id, 'documentId:', tree?.documentId)
+      console.log('Дерево загружено, id:', tree?.id, 'documentId:', tree?.documentId, 'skills:', tree?.skills?.length)
 
       if (!tree) {
         return ctx.notFound('Дерево навыков не найдено')
@@ -61,6 +64,12 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
       // Сохраняем числовой id дерева для связей
       const treeNumericId = tree.id
 
+      // Создаём маппинг documentId -> numeric id для существующих навыков
+      const skillDocIdToNumericId = new Map<string, number>()
+      tree.skills?.forEach((skill: any) => {
+        skillDocIdToNumericId.set(skill.documentId, skill.id)
+      })
+
       // Маппинг временных ID на реальные documentId
       const skillIdMap = new Map<string, string>()
       const guideIdMap = new Map<string, string>()
@@ -68,7 +77,12 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
       // 2. Обработка удаленных навыков
       console.log('Удаление навыков:', deletedSkills)
       for (const skillDocId of deletedSkills) {
-        await strapi.entityService.delete('api::skill.skill', skillDocId)
+        // Находим навык в дереве чтобы получить его числовой id
+        const skillToDelete = tree.skills?.find((s: any) => s.documentId === skillDocId)
+        if (skillToDelete) {
+          console.log('Удаление навыка с id:', skillToDelete.id)
+          await strapi.entityService.delete('api::skill.skill', skillToDelete.id)
+        }
       }
 
       // 3. Обработка навыков (создание/обновление) с изображениями
@@ -124,7 +138,13 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
 
         if (skillData.documentId) {
           // Обновляем существующий навык
-          console.log('Обновление навыка:', skillData.documentId)
+          const numericId = skillDocIdToNumericId.get(skillData.documentId)
+          if (!numericId) {
+            console.error('Навык не найден:', skillData.documentId)
+            continue
+          }
+
+          console.log('Обновление навыка:', skillData.documentId, 'id:', numericId)
           const updateData: any = {
             title: skillData.title,
             position: skillData.position,
@@ -134,7 +154,7 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
             updateData.image = imageId
           }
 
-          await strapi.entityService.update('api::skill.skill', skillData.documentId, {
+          await strapi.entityService.update('api::skill.skill', numericId, {
             data: updateData
           })
         } else if (skillData.tempId) {
