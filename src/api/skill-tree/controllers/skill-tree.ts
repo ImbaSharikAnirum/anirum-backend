@@ -245,6 +245,24 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
           await strapi.entityService.update('api::guide.guide', guideData.documentId, {
             data: updateData
           })
+
+          // Проверяем и добавляем связь с навыком (если её ещё нет)
+          const skill = await strapi.entityService.findOne('api::skill.skill', realSkillId, {
+            populate: ['guides']
+          }) as any
+
+          const existingGuideDocIds = (skill.guides || []).map((g: any) => g.documentId)
+          if (!existingGuideDocIds.includes(guideData.documentId)) {
+            // Гайд не связан с этим навыком, добавляем связь
+            const updatedGuideDocIds = [...existingGuideDocIds, guideData.documentId]
+
+            await strapi.entityService.update('api::skill.skill', realSkillId, {
+              data: {
+                guides: updatedGuideDocIds
+              } as any
+            })
+            console.log(`Связан существующий гайд ${guideData.documentId} с навыком ${realSkillId}`)
+          }
         } else if (guideData.tempId) {
           // Создаем новый гайд
           const createData: any = {
@@ -284,14 +302,21 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
       }
 
       // 6. Обновляем guideEdges для каждого навыка
+      console.log('Обновление guideEdges для навыков...')
       for (const skillData of skills) {
         if (skillData.guideEdges && skillData.guideEdges.length > 0) {
+          console.log('Навык имеет guideEdges:', skillData.title, 'кол-во связей:', skillData.guideEdges.length)
+          console.log('guideEdges до обработки:', JSON.stringify(skillData.guideEdges))
+          console.log('guideIdMap:', JSON.stringify(Object.fromEntries(guideIdMap)))
+
           // Заменяем временные ID гайдов на реальные
           const updatedGuideEdges = skillData.guideEdges.map((edge: any) => ({
             ...edge,
             source: guideIdMap.get(edge.source) || edge.source,
             target: guideIdMap.get(edge.target) || edge.target,
           }))
+
+          console.log('guideEdges после обработки:', JSON.stringify(updatedGuideEdges))
 
           const realSkillDocId = skillIdMap.get(skillData.tempId) || skillData.documentId
 
@@ -300,6 +325,7 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
               guideEdges: updatedGuideEdges
             }
           })
+          console.log(`Обновлены guideEdges для навыка ${realSkillDocId}`)
         }
       }
 
