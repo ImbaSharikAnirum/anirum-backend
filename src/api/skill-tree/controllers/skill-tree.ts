@@ -23,7 +23,7 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
    *   deletedSkills: ['skill-documentId-1'],
    *   guides: [
    *     { tempId: 'temp-guide-1', title: 'Гайд', skillId: 'skill-123', image?: base64, text?, link? },
-   *     { documentId: 'guide-123', title: 'Гайд', skillId: 'skill-123' }
+   *     { id: 123, title: 'Гайд', skillId: 'skill-123' }
    *   ]
    * }
    */
@@ -241,9 +241,9 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
           continue
         }
 
-        if (guideData.documentId) {
-          // Обновляем существующий гайд
-          console.log(`Обновление существующего гайда: ${guideData.documentId}`)
+        if (guideData.id) {
+          // Обновляем существующий гайд (получен numeric ID)
+          console.log(`Обновление существующего гайда с id: ${guideData.id}`)
           const updateData: any = {
             title: guideData.title,
             text: guideData.text,
@@ -254,7 +254,7 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
             updateData.image = imageId
           }
 
-          await strapi.entityService.update('api::guide.guide', guideData.documentId, {
+          await strapi.entityService.update('api::guide.guide', guideData.id, {
             data: updateData
           })
 
@@ -263,34 +263,23 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
             populate: ['guides']
           }) as any
 
-          // Нужно получить числовой ID гайда
-          const guideNumericId = await strapi.db.query('api::guide.guide').findOne({
-            where: { documentId: guideData.documentId },
-            select: ['id']
-          })
-
-          if (!guideNumericId) {
-            console.error(`❌ Не найден гайд с documentId: ${guideData.documentId}`)
-            continue
-          }
-
           const existingGuideIds = (skill.guides || []).map((g: any) => g.id)
           console.log(`Существующие гайды навыка (id): ${existingGuideIds.join(', ')}`)
 
-          if (!existingGuideIds.includes(guideNumericId.id)) {
+          if (!existingGuideIds.includes(guideData.id)) {
             // Гайд не связан с этим навыком, добавляем связь
-            const updatedGuideIds = [...existingGuideIds, guideNumericId.id]
+            const updatedGuideIds = [...existingGuideIds, guideData.id]
 
-            console.log(`Добавление связи: навык ${realSkillNumericId} <- гайд ${guideNumericId.id}`)
+            console.log(`Добавление связи: навык ${realSkillNumericId} <- гайд ${guideData.id}`)
 
             await strapi.entityService.update('api::skill.skill', realSkillNumericId, {
               data: {
                 guides: updatedGuideIds
               } as any
             })
-            console.log(`✅ Связан существующий гайд ${guideData.documentId} (id: ${guideNumericId.id}) с навыком ${realSkillDocId}`)
+            console.log(`✅ Связан существующий гайд (id: ${guideData.id}) с навыком ${realSkillDocId}`)
           } else {
-            console.log(`Гайд ${guideData.documentId} (id: ${guideNumericId.id}) уже связан с навыком ${realSkillDocId}`)
+            console.log(`Гайд (id: ${guideData.id}) уже связан с навыком ${realSkillDocId}`)
           }
         } else if (guideData.tempId) {
           // Создаем новый гайд
