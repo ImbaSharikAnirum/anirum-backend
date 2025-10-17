@@ -228,10 +228,22 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
         }
 
         // Определяем реальный skillId (с учетом маппинга)
-        const realSkillId = skillIdMap.get(guideData.skillId) || guideData.skillId
+        const realSkillDocId = skillIdMap.get(guideData.skillId) || guideData.skillId
+        const realSkillNumericId = skillDocIdToNumericId.get(realSkillDocId)
+
+        console.log(`Обработка гайда: ${guideData.title}`)
+        console.log(`  skillId из данных: ${guideData.skillId}`)
+        console.log(`  realSkillDocId: ${realSkillDocId}`)
+        console.log(`  realSkillNumericId: ${realSkillNumericId}`)
+
+        if (!realSkillNumericId) {
+          console.error(`❌ Не найден числовой ID для навыка с documentId: ${realSkillDocId}`)
+          continue
+        }
 
         if (guideData.documentId) {
           // Обновляем существующий гайд
+          console.log(`Обновление существующего гайда: ${guideData.documentId}`)
           const updateData: any = {
             title: guideData.title,
             text: guideData.text,
@@ -247,24 +259,42 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
           })
 
           // Проверяем и добавляем связь с навыком (если её ещё нет)
-          const skill = await strapi.entityService.findOne('api::skill.skill', realSkillId, {
+          const skill = await strapi.entityService.findOne('api::skill.skill', realSkillNumericId, {
             populate: ['guides']
           }) as any
 
-          const existingGuideDocIds = (skill.guides || []).map((g: any) => g.documentId)
-          if (!existingGuideDocIds.includes(guideData.documentId)) {
-            // Гайд не связан с этим навыком, добавляем связь
-            const updatedGuideDocIds = [...existingGuideDocIds, guideData.documentId]
+          // Нужно получить числовой ID гайда
+          const guideNumericId = await strapi.db.query('api::guide.guide').findOne({
+            where: { documentId: guideData.documentId },
+            select: ['id']
+          })
 
-            await strapi.entityService.update('api::skill.skill', realSkillId, {
+          if (!guideNumericId) {
+            console.error(`❌ Не найден гайд с documentId: ${guideData.documentId}`)
+            continue
+          }
+
+          const existingGuideIds = (skill.guides || []).map((g: any) => g.id)
+          console.log(`Существующие гайды навыка (id): ${existingGuideIds.join(', ')}`)
+
+          if (!existingGuideIds.includes(guideNumericId.id)) {
+            // Гайд не связан с этим навыком, добавляем связь
+            const updatedGuideIds = [...existingGuideIds, guideNumericId.id]
+
+            console.log(`Добавление связи: навык ${realSkillNumericId} <- гайд ${guideNumericId.id}`)
+
+            await strapi.entityService.update('api::skill.skill', realSkillNumericId, {
               data: {
-                guides: updatedGuideDocIds
+                guides: updatedGuideIds
               } as any
             })
-            console.log(`Связан существующий гайд ${guideData.documentId} с навыком ${realSkillId}`)
+            console.log(`✅ Связан существующий гайд ${guideData.documentId} (id: ${guideNumericId.id}) с навыком ${realSkillDocId}`)
+          } else {
+            console.log(`Гайд ${guideData.documentId} (id: ${guideNumericId.id}) уже связан с навыком ${realSkillDocId}`)
           }
         } else if (guideData.tempId) {
           // Создаем новый гайд
+          console.log(`Создание нового гайда: ${guideData.title}`)
           const createData: any = {
             title: guideData.title,
             text: guideData.text || '',
@@ -283,21 +313,25 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
 
           // Сохраняем маппинг
           guideIdMap.set(guideData.tempId, createdGuide.documentId)
+          console.log(`Создан гайд с documentId: ${createdGuide.documentId}`)
 
           // 5. Связываем гайд с навыком (many-to-many relation)
-          const skill = await strapi.entityService.findOne('api::skill.skill', realSkillId, {
+          const skill = await strapi.entityService.findOne('api::skill.skill', realSkillNumericId, {
             populate: ['guides']
           }) as any
 
-          // Собираем documentId существующих гайдов и добавляем новый
-          const existingGuideDocIds = (skill.guides || []).map((g: any) => g.documentId)
-          const updatedGuideDocIds = [...existingGuideDocIds, createdGuide.documentId]
+          // Собираем numeric ID существующих гайдов и добавляем новый
+          const existingGuideIds = (skill.guides || []).map((g: any) => g.id)
+          const updatedGuideIds = [...existingGuideIds, createdGuide.id]
 
-          await strapi.entityService.update('api::skill.skill', realSkillId, {
+          console.log(`Добавление связи: навык ${realSkillNumericId} <- новый гайд ${createdGuide.id} (documentId: ${createdGuide.documentId})`)
+
+          await strapi.entityService.update('api::skill.skill', realSkillNumericId, {
             data: {
-              guides: updatedGuideDocIds
+              guides: updatedGuideIds
             } as any
           })
+          console.log(`✅ Связан новый гайд ${createdGuide.documentId} (id: ${createdGuide.id}) с навыком ${realSkillDocId}`)
         }
       }
 
