@@ -55,13 +55,19 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
   },
 
   /**
-   * Получить гайд по ID
+   * Получить гайд по ID или documentId
    */
   async findOne(ctx: any) {
     const { id } = ctx.params
     const { query } = ctx
 
-    const result = await strapi.entityService.findOne('api::guide.guide', id, {
+    // Логируем для отладки
+    console.log('🔍 findOne called:', { id, query, user: ctx.state.user?.id })
+
+    // Strapi 5: поддерживаем как числовой id, так и documentId
+    // Используем entityService.findMany для поддержки query параметров (status и т.д.)
+    const results = await strapi.entityService.findMany('api::guide.guide', {
+      filters: { documentId: id },
       ...query,
       populate: {
         image: {
@@ -73,8 +79,15 @@ export default factories.createCoreController('api::guide.guide', ({ strapi }) =
         savedBy: {
           fields: ['id']
         }
-      }
+      },
+      limit: 1
     })
+
+    const result = Array.isArray(results) ? results[0] : results
+
+    if (!result) {
+      return ctx.notFound('Гайд не найден')
+    }
 
     return this.transformResponse(result)
   },
