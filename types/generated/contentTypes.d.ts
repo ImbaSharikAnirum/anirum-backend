@@ -744,7 +744,7 @@ export interface ApiSkillSkill extends Struct.CollectionTypeSchema {
     singularName: 'skill';
   };
   options: {
-    draftAndPublish: true;
+    draftAndPublish: false;
   };
   attributes: {
     createdAt: Schema.Attribute.DateTime;
