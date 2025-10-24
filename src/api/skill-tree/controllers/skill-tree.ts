@@ -84,11 +84,13 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
 
       // 3. Обработка навыков (создание/обновление) с изображениями
       console.log('Обработка навыков, всего:', skills.length)
+      console.log('🔍 Первый навык (полный объект):', JSON.stringify(skills[0], null, 2))
+
       for (const skillData of skills) {
         // Используем imageId, который был загружен на frontend
         const imageId = skillData.imageId
 
-        console.log('Навык:', skillData.title, 'имеет imageId:', imageId)
+        console.log('📝 Навык:', skillData.title, 'imageId:', imageId, 'тип imageId:', typeof imageId)
 
         if (skillData.documentId) {
           // Обновляем существующий навык
