@@ -560,19 +560,19 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
         console.log(`   currentMonth: ${currentMonth} (type: ${typeof currentMonth})`);
         console.log(`   currentYear: ${currentYear} (type: ${typeof currentYear})`);
 
-        // Функция для форматирования даты в ISO формат с UTC (Z)
-        // Strapi 5 требует валидный ISO формат с указанием timezone
+        // Функция для форматирования даты для типа "date" в Strapi
+        // Тип "date" требует формат YYYY-MM-DD БЕЗ времени и timezone
         const formatDateLocal = (date) => {
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, '0');
           const day = String(date.getDate()).padStart(2, '0');
 
-          // ISO формат с UTC timezone (требуется Z для валидации Strapi 5)
-          const isoString = `${year}-${month}-${day}T00:00:00.000Z`;
+          // Простой формат даты YYYY-MM-DD для типа "date"
+          const dateString = `${year}-${month}-${day}`;
 
-          console.log(`🔧 [formatDateLocal] Input:`, date, `-> Output: "${isoString}"`);
+          console.log(`🔧 [formatDateLocal] Input:`, date, `-> Output: "${dateString}"`);
 
-          return isoString;
+          return dateString;
         };
 
         // Получаем информацию о курсе
