@@ -767,6 +767,11 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
               bonusesUsed: 0, // Бонусы не переносим
             };
 
+            console.log(`📝 [BACKEND] Создание счета для ${invoice.name} ${invoice.family}:`);
+            console.log(`   startDate: "${newInvoiceData.startDate}" (type: ${typeof newInvoiceData.startDate})`);
+            console.log(`   endDate: "${newInvoiceData.endDate}" (type: ${typeof newInvoiceData.endDate})`);
+            console.log(`   sum: ${newInvoiceData.sum}, currency: ${newInvoiceData.currency}`);
+
             const newInvoice = await strapi.documents('api::invoice.invoice').create({
               data: newInvoiceData,
             });
