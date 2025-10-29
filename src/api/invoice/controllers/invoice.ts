@@ -561,18 +561,14 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
         console.log(`   currentYear: ${currentYear} (type: ${typeof currentYear})`);
 
         // Функция для форматирования даты для типа "date" в Strapi
-        // Тип "date" требует формат YYYY-MM-DD БЕЗ времени и timezone
+        // Тип "date" требует Date объект, обнуляем время для чистой даты
         const formatDateLocal = (date) => {
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
+          // Создаем новый Date объект в локальном timezone без времени
+          const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
-          // Простой формат даты YYYY-MM-DD для типа "date"
-          const dateString = `${year}-${month}-${day}`;
+          console.log(`🔧 [formatDateLocal] Input:`, date, `-> Output:`, localDate);
 
-          console.log(`🔧 [formatDateLocal] Input:`, date, `-> Output: "${dateString}"`);
-
-          return dateString;
+          return localDate;
         };
 
         // Получаем информацию о курсе
