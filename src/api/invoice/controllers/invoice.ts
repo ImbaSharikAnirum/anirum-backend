@@ -555,16 +555,19 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
           return ctx.badRequest('Необходимо указать courseId, currentMonth и currentYear');
         }
 
-        console.log(`📋 Копирование счетов на следующий месяц для курса: ${courseId}, с ${currentMonth}/${currentYear}`);
+        console.log(`📋 [COPY INVOICES] Входящие данные:`);
+        console.log(`   courseId: "${courseId}"`);
+        console.log(`   currentMonth: ${currentMonth} (type: ${typeof currentMonth})`);
+        console.log(`   currentYear: ${currentYear} (type: ${typeof currentYear})`);
 
-        // Функция для форматирования даты в полный ISO формат
-        // Strapi 5 может требовать полный ISO формат YYYY-MM-DDTHH:mm:ss.sssZ
+        // Функция для форматирования даты БЕЗ UTC смещения
+        // Возвращаем простой формат YYYY-MM-DD как при бронировании
         const formatDateLocal = (date) => {
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, '0');
           const day = String(date.getDate()).padStart(2, '0');
-          // Возвращаем полный ISO формат с временем 00:00:00.000Z
-          return `${year}-${month}-${day}T00:00:00.000Z`;
+          // Простой формат YYYY-MM-DD (как в booking-steps.tsx)
+          return `${year}-${month}-${day}`;
         };
 
         // Получаем информацию о курсе
@@ -669,6 +672,10 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
         };
 
         const nextMonthDates = calculateNextMonthDates(course.weekdays);
+
+        console.log(`📅 [COPY INVOICES] Рассчитанные даты для ${nextMonth}/${nextYear}:`);
+        console.log(`   startDate: "${nextMonthDates.startDate}" (type: ${typeof nextMonthDates.startDate})`);
+        console.log(`   endDate: "${nextMonthDates.endDate}" (type: ${typeof nextMonthDates.endDate})`);
 
         // Вычисляем количество занятий в следующем месяце
         const calculateLessonsCount = (weekdays, startDate, endDate) => {
