@@ -560,15 +560,15 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
         console.log(`   currentMonth: ${currentMonth} (type: ${typeof currentMonth})`);
         console.log(`   currentYear: ${currentYear} (type: ${typeof currentYear})`);
 
-        // Функция для форматирования даты в ISO формат БЕЗ UTC смещения
-        // Возвращаем ISO формат с полуночью в локальном времени
+        // Функция для форматирования даты в ISO формат с UTC (Z)
+        // Strapi 5 требует валидный ISO формат с указанием timezone
         const formatDateLocal = (date) => {
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, '0');
           const day = String(date.getDate()).padStart(2, '0');
 
-          // ISO формат с локальным временем 00:00:00 без Z (без UTC)
-          const isoString = `${year}-${month}-${day}T00:00:00.000`;
+          // ISO формат с UTC timezone (требуется Z для валидации Strapi 5)
+          const isoString = `${year}-${month}-${day}T00:00:00.000Z`;
 
           console.log(`🔧 [formatDateLocal] Input:`, date, `-> Output: "${isoString}"`);
 
