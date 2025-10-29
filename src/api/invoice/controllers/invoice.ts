@@ -560,14 +560,19 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
         console.log(`   currentMonth: ${currentMonth} (type: ${typeof currentMonth})`);
         console.log(`   currentYear: ${currentYear} (type: ${typeof currentYear})`);
 
-        // Функция для форматирования даты БЕЗ UTC смещения
-        // Возвращаем простой формат YYYY-MM-DD как при бронировании
+        // Функция для форматирования даты в ISO формат БЕЗ UTC смещения
+        // Возвращаем ISO формат с полуночью в локальном времени
         const formatDateLocal = (date) => {
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, '0');
           const day = String(date.getDate()).padStart(2, '0');
-          // Простой формат YYYY-MM-DD (как в booking-steps.tsx)
-          return `${year}-${month}-${day}`;
+
+          // ISO формат с локальным временем 00:00:00 без Z (без UTC)
+          const isoString = `${year}-${month}-${day}T00:00:00.000`;
+
+          console.log(`🔧 [formatDateLocal] Input:`, date, `-> Output: "${isoString}"`);
+
+          return isoString;
         };
 
         // Получаем информацию о курсе
