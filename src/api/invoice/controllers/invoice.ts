@@ -750,6 +750,9 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
               continue;
             }
 
+            console.log(`🔍 [DEBUG] Подготовка к созданию счета для ${invoice.name} ${invoice.family}:`);
+            console.log(`   nextMonthDates:`, nextMonthDates);
+
             // Создаем новый invoice с рассчитанной суммой
             const newInvoiceData = {
               name: invoice.name,
