@@ -557,6 +557,14 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
 
         console.log(`📋 Копирование счетов на следующий месяц для курса: ${courseId}, с ${currentMonth}/${currentYear}`);
 
+        // Функция для форматирования даты БЕЗ UTC смещения (как в frontend booking-steps)
+        const formatDateLocal = (date) => {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+
         // Получаем информацию о курсе
         const course = await strapi.documents('api::course.course').findOne({
           documentId: courseId,
@@ -606,8 +614,8 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
             const nextMonthStart = new Date(nextYear, nextMonth - 1, 1);
             const nextMonthEnd = new Date(nextYear, nextMonth, 0);
             return {
-              startDate: nextMonthStart.toISOString().split('T')[0],
-              endDate: nextMonthEnd.toISOString().split('T')[0],
+              startDate: formatDateLocal(nextMonthStart),
+              endDate: formatDateLocal(nextMonthEnd),
             };
           }
 
@@ -635,8 +643,14 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
           }
 
           // Проверяем границы общего курса
-          const courseStartDate = new Date(course.startDate);
-          const courseEndDate = new Date(course.endDate);
+          // Парсим даты курса БЕЗ UTC (как в frontend)
+          const startDateStr = typeof course.startDate === 'string' ? course.startDate : course.startDate.toISOString().split('T')[0];
+          const endDateStr = typeof course.endDate === 'string' ? course.endDate : course.endDate.toISOString().split('T')[0];
+
+          const [courseStartYear, courseStartMonth, courseStartDay] = startDateStr.split('-').map(Number);
+          const [courseEndYear, courseEndMonth, courseEndDay] = endDateStr.split('-').map(Number);
+          const courseStartDate = new Date(courseStartYear, courseStartMonth - 1, courseStartDay);
+          const courseEndDate = new Date(courseEndYear, courseEndMonth - 1, courseEndDay);
 
           const effectiveStart = firstCourseDay && firstCourseDay >= courseStartDate
             ? firstCourseDay
@@ -647,8 +661,8 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
             : new Date(Math.min(nextMonthEnd.getTime(), courseEndDate.getTime()));
 
           return {
-            startDate: effectiveStart.toISOString().split('T')[0],
-            endDate: effectiveEnd.toISOString().split('T')[0],
+            startDate: formatDateLocal(effectiveStart),
+            endDate: formatDateLocal(effectiveEnd),
           };
         };
 
