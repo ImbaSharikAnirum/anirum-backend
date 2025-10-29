@@ -557,12 +557,14 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
 
         console.log(`📋 Копирование счетов на следующий месяц для курса: ${courseId}, с ${currentMonth}/${currentYear}`);
 
-        // Функция для форматирования даты БЕЗ UTC смещения (как в frontend booking-steps)
+        // Функция для форматирования даты в полный ISO формат
+        // Strapi 5 может требовать полный ISO формат YYYY-MM-DDTHH:mm:ss.sssZ
         const formatDateLocal = (date) => {
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, '0');
           const day = String(date.getDate()).padStart(2, '0');
-          return `${year}-${month}-${day}`;
+          // Возвращаем полный ISO формат с временем 00:00:00.000Z
+          return `${year}-${month}-${day}T00:00:00.000Z`;
         };
 
         // Получаем информацию о курсе
