@@ -889,6 +889,9 @@ ${scheduleInfo ? scheduleInfo + "\n\n" : ""}Если у вас возникну�
 
         for (const invoice of currentInvoices) {
           try {
+            // Получаем последний день месяца корректно
+            const lastDayOfMonth = new Date(nextYear, nextMonth, 0).getDate();
+
             // Проверяем, не существует ли уже счет для этого пользователя в следующем месяце
             const existingInvoice = await strapi
               .documents("api::invoice.invoice")
@@ -902,11 +905,11 @@ ${scheduleInfo ? scheduleInfo + "\n\n" : ""}Если у вас возникну�
                   },
                   startDate: {
                     $gte: `${nextYear}-${nextMonth.toString().padStart(2, "0")}-01`,
-                    $lte: `${nextYear}-${nextMonth.toString().padStart(2, "0")}-31`,
+                    $lte: `${nextYear}-${nextMonth.toString().padStart(2, "0")}-${String(lastDayOfMonth).padStart(2, "0")}`,
                   },
                 },
               });
-            console.log(`existingInvoice:`, existingInvoice);
+            console.log(`existingInvoice для ${invoice.name}: ${existingInvoice.length} счетов`);
             if (existingInvoice.length > 0) {
               console.log(
                 `⚠️ Счет для ${invoice.name} ${invoice.family} уже существует в ${nextMonth}/${nextYear}`
