@@ -803,15 +803,7 @@ ${scheduleInfo ? scheduleInfo + "\n\n" : ""}Если у вас возникну�
 
         const nextMonthDates = calculateNextMonthDates(course.weekdays);
 
-        console.log(
-          `📅 [COPY INVOICES] Рассчитанные даты для ${nextMonth}/${nextYear}:`
-        );
-        console.log(
-          `   startDate: "${nextMonthDates.startDate}" (type: ${typeof nextMonthDates.startDate})`
-        );
-        console.log(
-          `   endDate: "${nextMonthDates.endDate}" (type: ${typeof nextMonthDates.endDate})`
-        );
+        console.log(`📅 Даты для ${nextMonth}/${nextYear}: ${nextMonthDates.startDate} - ${nextMonthDates.endDate}`);
 
         // Вычисляем количество занятий в следующем месяце
         const calculateLessonsCount = (
@@ -921,44 +913,30 @@ ${scheduleInfo ? scheduleInfo + "\n\n" : ""}Если у вас возникну�
               continue;
             }
 
-            console.log(
-              `🔍 [DEBUG] Подготовка к созданию счета для ${invoice.name} ${invoice.family}:`
-            );
-            console.log(`   nextMonthDates:`, nextMonthDates);
-
             // Создаем новый invoice с рассчитанной суммой
             const newInvoiceData = {
               name: invoice.name,
               family: invoice.family,
-              sum: monthlySum, // Рассчитанная сумма за месяц
-              currency: course.currency, // Валюта из курса
+              sum: monthlySum,
+              currency: course.currency,
               startDate: nextMonthDates.startDate,
               endDate: nextMonthDates.endDate,
-              statusPayment: false, // Новые счета не оплачены
-              course: courseId, // documentId курса
-              owner: invoice.owner?.documentId, // documentId владельца
+              statusPayment: false,
+              course: courseId,
+              owner: invoice.owner?.documentId,
               // Устанавливаем originalSum как полную сумму без скидок
               originalSum: monthlySum,
               discountAmount: 0, // Скидки не переносим
               bonusesUsed: 0, // Бонусы не переносим
             };
 
-            console.log(
-              `📝 [BACKEND] Создание счета для ${invoice.name} ${invoice.family}:`
-            );
-            console.log(
-              `   startDate: "${newInvoiceData.startDate}" (type: ${typeof newInvoiceData.startDate})`
-            );
-            console.log(
-              `   endDate: "${newInvoiceData.endDate}" (type: ${typeof newInvoiceData.endDate})`
-            );
-            console.log(
-              `   sum: ${newInvoiceData.sum}, currency: ${newInvoiceData.currency}`
-            );
-            console.log(
-              `   Полный объект newInvoiceData:`,
-              JSON.stringify(newInvoiceData, null, 2)
-            );
+            console.log(`\n━━━ СОЗДАНИЕ СЧЕТА ${invoice.name} ${invoice.family} ━━━`);
+            console.log(`startDate: "${newInvoiceData.startDate}" (type: ${typeof newInvoiceData.startDate}, length: ${newInvoiceData.startDate?.length})`);
+            console.log(`endDate: "${newInvoiceData.endDate}" (type: ${typeof newInvoiceData.endDate}, length: ${newInvoiceData.endDate?.length})`);
+            console.log(`Regex test startDate: ${/^\d{4}-\d{2}-\d{2}$/.test(newInvoiceData.startDate)}`);
+            console.log(`Regex test endDate: ${/^\d{4}-\d{2}-\d{2}$/.test(newInvoiceData.endDate)}`);
+            console.log(`Полный объект:`, JSON.stringify(newInvoiceData, null, 2));
+            console.log(`━━━ ВЫЗОВ create() ━━━\n`);
 
             const newInvoice = await strapi
               .documents("api::invoice.invoice")
