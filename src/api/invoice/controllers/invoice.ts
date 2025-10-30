@@ -302,22 +302,26 @@ export default factories.createCoreController(
 
         // Проверяем авторизацию
         if (!userId) {
-          return ctx.unauthorized('Необходима авторизация');
+          return ctx.unauthorized("Необходима авторизация");
         }
 
         // Проверяем роль пользователя (только менеджеры могут отправлять)
         const userRole = ctx.state.user?.role?.name;
-        if (userRole !== 'Manager') {
-          return ctx.forbidden('Только менеджеры могут отправлять массовые сообщения');
+        if (userRole !== "Manager") {
+          return ctx.forbidden(
+            "Только менеджеры могут отправлять массовые сообщения"
+          );
         }
 
         // Валидация входных данных
         if (!courseId) {
-          return ctx.badRequest('Необходимо указать courseId');
+          return ctx.badRequest("Необходимо указать courseId");
         }
 
         console.log(`📤 Массовая отправка сообщений для курса: ${courseId}`);
-        console.log(`📅 Переданные параметры: month=${month}, year=${year}, типы: ${typeof month}, ${typeof year}`);
+        console.log(
+          `📅 Переданные параметры: month=${month}, year=${year}, типы: ${typeof month}, ${typeof year}`
+        );
 
         // Формируем фильтры
         const filters: any = {
@@ -328,9 +332,9 @@ export default factories.createCoreController(
 
         // Добавляем фильтрацию по дате если указаны month и year
         if (month && year) {
-          const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
+          const startDate = `${year}-${month.toString().padStart(2, "0")}-01`;
           const lastDay = new Date(year, month, 0).getDate();
-          const endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
+          const endDate = `${year}-${month.toString().padStart(2, "0")}-${lastDay}`;
 
           filters.startDate = {
             $gte: startDate,
@@ -340,27 +344,34 @@ export default factories.createCoreController(
           console.log(`🗓️ Фильтрация по датам: ${startDate} - ${endDate}`);
           console.log(`🔍 Итоговые фильтры:`, JSON.stringify(filters, null, 2));
         } else {
-          console.log(`⚠️ Фильтрация по дате НЕ применяется (month или year не переданы)`);
+          console.log(
+            `⚠️ Фильтрация по дате НЕ применяется (month или year не переданы)`
+          );
         }
 
         // Получаем invoices курса с владельцами (с учетом фильтров по дате)
-        const invoices = await strapi.documents('api::invoice.invoice').findMany({
-          filters,
-          populate: ['owner'],
-        });
+        const invoices = await strapi
+          .documents("api::invoice.invoice")
+          .findMany({
+            filters,
+            populate: ["owner"],
+          });
 
         if (invoices.length === 0) {
-          return ctx.badRequest('У курса нет студентов');
+          return ctx.badRequest("У курса нет студентов");
         }
 
         console.log(`👥 Найдено студентов: ${invoices.length}`);
-        console.log(`📋 Детали найденных invoices:`, invoices.map(inv => ({
-          documentId: inv.documentId,
-          studentName: `${inv.name} ${inv.family}`,
-          startDate: inv.startDate,
-          endDate: inv.endDate,
-          ownerName: inv.owner?.username || 'без владельца'
-        })));
+        console.log(
+          `📋 Детали найденных invoices:`,
+          invoices.map((inv) => ({
+            documentId: inv.documentId,
+            studentName: `${inv.name} ${inv.family}`,
+            startDate: inv.startDate,
+            endDate: inv.endDate,
+            ownerName: inv.owner?.username || "без владельца",
+          }))
+        );
 
         // Результаты отправки
         const results = {
@@ -381,7 +392,7 @@ export default factories.createCoreController(
               results.details.push({
                 studentName,
                 success: false,
-                error: 'У студента нет владельца',
+                error: "У студента нет владельца",
               });
               continue;
             }
@@ -394,23 +405,25 @@ export default factories.createCoreController(
               invoice.owner.whatsapp_phone_verified &&
               invoice.owner.whatsapp_phone
             ) {
-              messenger = 'whatsapp';
+              messenger = "whatsapp";
               contact = invoice.owner.whatsapp_phone;
             } else if (
               invoice.owner.telegram_phone_verified &&
               (invoice.owner as any).telegram_chat_id
             ) {
-              messenger = 'telegram';
+              messenger = "telegram";
               contact = (invoice.owner as any).telegram_chat_id;
             }
 
             if (!messenger || !contact) {
-              console.log(`⚠️ У студента ${studentName} нет верифицированных контактов`);
+              console.log(
+                `⚠️ У студента ${studentName} нет верифицированных контактов`
+              );
               results.failed++;
               results.details.push({
                 studentName,
                 success: false,
-                error: 'Нет верифицированных контактов в мессенджерах',
+                error: "Нет верифицированных контактов в мессенджерах",
               });
               continue;
             }
@@ -418,45 +431,72 @@ export default factories.createCoreController(
             // Отправляем сообщение напрямую
             try {
               // Получаем информацию о курсе для формирования сообщения
-              const course = await strapi.documents('api::course.course').findOne({
-                documentId: courseId,
-                fields: ['direction', 'weekdays', 'startTime', 'endTime', 'timezone'],
-              });
+              const course = await strapi
+                .documents("api::course.course")
+                .findOne({
+                  documentId: courseId,
+                  fields: [
+                    "direction",
+                    "weekdays",
+                    "startTime",
+                    "endTime",
+                    "timezone",
+                  ],
+                });
 
               if (!course) {
-                throw new Error('Курс не найден');
+                throw new Error("Курс не найден");
               }
 
               // Формируем URL оплаты
-              const baseUrl = 'https://www.anirum.com';
+              const baseUrl = "https://www.anirum.com";
               const paymentUrl = `${baseUrl}/courses/${courseId}/payment/${invoice.documentId}`;
 
               // Формируем информацию о расписании
-              let scheduleInfo = '';
-              if (course.weekdays && Array.isArray(course.weekdays) && course.weekdays.length > 0) {
+              let scheduleInfo = "";
+              if (
+                course.weekdays &&
+                Array.isArray(course.weekdays) &&
+                course.weekdays.length > 0
+              ) {
                 const formatWeekdays = (weekdays: string[]) => {
                   const weekdayNames = {
-                    monday: 'Понедельник',
-                    tuesday: 'Вторник',
-                    wednesday: 'Среда',
-                    thursday: 'Четверг',
-                    friday: 'Пятница',
-                    saturday: 'Суббота',
-                    sunday: 'Воскресенье',
+                    monday: "Понедельник",
+                    tuesday: "Вторник",
+                    wednesday: "Среда",
+                    thursday: "Четверг",
+                    friday: "Пятница",
+                    saturday: "Суббота",
+                    sunday: "Воскресенье",
                   };
-                  return weekdays.map((day) => weekdayNames[day] || day).join(', ');
+                  return weekdays
+                    .map((day) => weekdayNames[day] || day)
+                    .join(", ");
                 };
 
-                const weekdaysText = formatWeekdays(course.weekdays as string[]);
+                const weekdaysText = formatWeekdays(
+                  course.weekdays as string[]
+                );
 
                 if (course.startTime && course.endTime && course.timezone) {
-                  const formatTime = (time: string) => time.split(':').slice(0, 2).join(':');
-                  let monthText = '';
+                  const formatTime = (time: string) =>
+                    time.split(":").slice(0, 2).join(":");
+                  let monthText = "";
                   if (invoice.startDate) {
                     const startDate = new Date(invoice.startDate);
                     const monthNames = [
-                      'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
-                      'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'
+                      "январь",
+                      "февраль",
+                      "март",
+                      "апрель",
+                      "май",
+                      "июнь",
+                      "июль",
+                      "август",
+                      "сентябрь",
+                      "октябрь",
+                      "ноябрь",
+                      "декабрь",
                     ];
                     monthText = `, месяц: ${monthNames[startDate.getMonth()]}`;
                   }
@@ -474,17 +514,19 @@ export default factories.createCoreController(
 Для оплаты курса, пожалуйста, перейдите по ссылке:
 ${paymentUrl}
 
-${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникнут вопросы, обращайтесь к нам.
+${scheduleInfo ? scheduleInfo + "\n\n" : ""}Если у вас возникнут вопросы, обращайтесь к нам.
 Спасибо!`;
 
               // Отправляем сообщение
-              if (messenger === 'whatsapp') {
+              if (messenger === "whatsapp") {
                 await whatsappService.sendMessage(contact, message);
-              } else if (messenger === 'telegram') {
+              } else if (messenger === "telegram") {
                 await telegramService.sendMessage(contact, message);
               }
 
-              console.log(`✅ Сообщение отправлено студенту ${studentName} в ${messenger}`);
+              console.log(
+                `✅ Сообщение отправлено студенту ${studentName} в ${messenger}`
+              );
               results.sent++;
               results.details.push({
                 studentName,
@@ -493,40 +535,45 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
               });
 
               // Пауза между отправками для предотвращения rate limiting
-              await new Promise(resolve => setTimeout(resolve, 1000));
-
+              await new Promise((resolve) => setTimeout(resolve, 1000));
             } catch (sendError) {
-              console.error(`❌ Ошибка отправки студенту ${studentName}:`, sendError);
+              console.error(
+                `❌ Ошибка отправки студенту ${studentName}:`,
+                sendError
+              );
               results.failed++;
               results.details.push({
                 studentName,
                 success: false,
-                error: sendError.message || 'Ошибка отправки сообщения',
+                error: sendError.message || "Ошибка отправки сообщения",
               });
             }
-
           } catch (studentError) {
-            console.error(`❌ Ошибка обработки студента ${studentName}:`, studentError);
+            console.error(
+              `❌ Ошибка обработки студента ${studentName}:`,
+              studentError
+            );
             results.failed++;
             results.details.push({
               studentName,
               success: false,
-              error: studentError.message || 'Ошибка обработки студента',
+              error: studentError.message || "Ошибка обработки студента",
             });
           }
         }
 
-        console.log(`📊 Результаты массовой отправки: ${results.sent} отправлено, ${results.failed} ошибок`);
+        console.log(
+          `📊 Результаты массовой отправки: ${results.sent} отправлено, ${results.failed} ошибок`
+        );
 
         return ctx.send({
           success: true,
           message: `Массовая отправка завершена: ${results.sent} из ${results.total} сообщений отправлено`,
           results,
         });
-
       } catch (error) {
-        console.error('❌ Ошибка в bulkSendPaymentMessages:', error);
-        return ctx.internalServerError('Внутренняя ошибка сервера');
+        console.error("❌ Ошибка в bulkSendPaymentMessages:", error);
+        return ctx.internalServerError("Внутренняя ошибка сервера");
       }
     },
 
@@ -541,71 +588,91 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
 
         // Проверяем авторизацию
         if (!userId) {
-          return ctx.unauthorized('Необходима авторизация');
+          return ctx.unauthorized("Необходима авторизация");
         }
 
         // Проверяем роль пользователя (только менеджеры могут копировать)
         const userRole = ctx.state.user?.role?.name;
-        if (userRole !== 'Manager') {
-          return ctx.forbidden('Только менеджеры могут копировать счета');
+        if (userRole !== "Manager") {
+          return ctx.forbidden("Только менеджеры могут копировать счета");
         }
 
         // Валидация входных данных
         if (!courseId || !currentMonth || !currentYear) {
-          return ctx.badRequest('Необходимо указать courseId, currentMonth и currentYear');
+          return ctx.badRequest(
+            "Необходимо указать courseId, currentMonth и currentYear"
+          );
         }
 
         console.log(`📋 [COPY INVOICES] Входящие данные:`);
         console.log(`   courseId: "${courseId}"`);
-        console.log(`   currentMonth: ${currentMonth} (type: ${typeof currentMonth})`);
-        console.log(`   currentYear: ${currentYear} (type: ${typeof currentYear})`);
+        console.log(
+          `   currentMonth: ${currentMonth} (type: ${typeof currentMonth})`
+        );
+        console.log(
+          `   currentYear: ${currentYear} (type: ${typeof currentYear})`
+        );
 
         // Функция для форматирования даты для типа "date" в Strapi
         // Тип "date" требует формат YYYY-MM-DD БЕЗ времени и timezone
-        const formatDateLocal = (date) => {
+        const formatDateLocal = (date: any) => {
           const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
           const dateString = `${year}-${month}-${day}`;
 
-          console.log(`🔧 [formatDateLocal] Input:`, date, `-> Output: "${dateString}"`);
+          console.log(
+            `🔧 [formatDateLocal] Input:`,
+            date,
+            `-> Output: "${dateString}"`
+          );
 
           return dateString;
         };
 
         // Получаем информацию о курсе
-        const course = await strapi.documents('api::course.course').findOne({
+        const course = await strapi.documents("api::course.course").findOne({
           documentId: courseId,
-          fields: ['weekdays', 'startDate', 'endDate', 'pricePerLesson', 'currency'],
+          fields: [
+            "weekdays",
+            "startDate",
+            "endDate",
+            "pricePerLesson",
+            "currency",
+          ],
         });
 
         if (!course) {
-          return ctx.badRequest('Курс не найден');
+          return ctx.badRequest("Курс не найден");
         }
 
         // Получаем все invoices текущего месяца
-        const startDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`;
+        const startDate = `${currentYear}-${currentMonth.toString().padStart(2, "0")}-01`;
         const lastDay = new Date(currentYear, currentMonth, 0).getDate();
-        const endDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-${lastDay}`;
+        const endDate = `${currentYear}-${currentMonth.toString().padStart(2, "0")}-${lastDay}`;
 
-        const currentInvoices = await strapi.documents('api::invoice.invoice').findMany({
-          filters: {
-            course: {
-              documentId: courseId,
+        const currentInvoices = await strapi
+          .documents("api::invoice.invoice")
+          .findMany({
+            filters: {
+              course: {
+                documentId: courseId,
+              },
+              startDate: {
+                $gte: startDate,
+                $lte: endDate,
+              },
             },
-            startDate: {
-              $gte: startDate,
-              $lte: endDate,
-            },
-          },
-          populate: ['owner'],
-        });
+            populate: ["owner"],
+          });
 
         if (currentInvoices.length === 0) {
-          return ctx.badRequest('Нет счетов для копирования в текущем месяце');
+          return ctx.badRequest("Нет счетов для копирования в текущем месяце");
         }
 
-        console.log(`👥 Найдено счетов для копирования: ${currentInvoices.length}`);
+        console.log(
+          `👥 Найдено счетов для копирования: ${currentInvoices.length}`
+        );
 
         // Вычисляем следующий месяц
         let nextMonth = currentMonth + 1;
@@ -629,10 +696,17 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
 
           // Преобразуем дни недели в числа (0=воскресенье, 1=понедельник, ...)
           const weekdayMap = {
-            sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
-            thursday: 4, friday: 5, saturday: 6
+            sunday: 0,
+            monday: 1,
+            tuesday: 2,
+            wednesday: 3,
+            thursday: 4,
+            friday: 5,
+            saturday: 6,
           };
-          const courseDays = weekdays.map(day => weekdayMap[day]).filter(day => day !== undefined);
+          const courseDays = weekdays
+            .map((day) => weekdayMap[day])
+            .filter((day) => day !== undefined);
 
           // Находим первый и последний день курса в следующем месяце
           const nextMonthStart = new Date(nextYear, nextMonth - 1, 1);
@@ -655,46 +729,71 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
           let startDateStr: string;
           let endDateStr: string;
 
-          if (typeof course.startDate === 'string') {
+          if (typeof course.startDate === "string") {
             startDateStr = course.startDate;
           } else if (course.startDate instanceof Date) {
             // Используем локальные компоненты даты, а не UTC
             const year = course.startDate.getFullYear();
-            const month = String(course.startDate.getMonth() + 1).padStart(2, '0');
-            const day = String(course.startDate.getDate()).padStart(2, '0');
+            const month = String(course.startDate.getMonth() + 1).padStart(
+              2,
+              "0"
+            );
+            const day = String(course.startDate.getDate()).padStart(2, "0");
             startDateStr = `${year}-${month}-${day}`;
           } else {
             // Fallback для неизвестных типов
             startDateStr = String(course.startDate);
           }
 
-          if (typeof course.endDate === 'string') {
+          if (typeof course.endDate === "string") {
             endDateStr = course.endDate;
           } else if (course.endDate instanceof Date) {
             // Используем локальные компоненты даты, а не UTC
             const year = course.endDate.getFullYear();
-            const month = String(course.endDate.getMonth() + 1).padStart(2, '0');
-            const day = String(course.endDate.getDate()).padStart(2, '0');
+            const month = String(course.endDate.getMonth() + 1).padStart(
+              2,
+              "0"
+            );
+            const day = String(course.endDate.getDate()).padStart(2, "0");
             endDateStr = `${year}-${month}-${day}`;
           } else {
             // Fallback для неизвестных типов
             endDateStr = String(course.endDate);
           }
 
-          console.log(`📅 [COURSE DATES] startDateStr: "${startDateStr}", endDateStr: "${endDateStr}"`);
+          console.log(
+            `📅 [COURSE DATES] startDateStr: "${startDateStr}", endDateStr: "${endDateStr}"`
+          );
 
-          const [courseStartYear, courseStartMonth, courseStartDay] = startDateStr.split('-').map(Number);
-          const [courseEndYear, courseEndMonth, courseEndDay] = endDateStr.split('-').map(Number);
-          const courseStartDate = new Date(courseStartYear, courseStartMonth - 1, courseStartDay);
-          const courseEndDate = new Date(courseEndYear, courseEndMonth - 1, courseEndDay);
+          const [courseStartYear, courseStartMonth, courseStartDay] =
+            startDateStr.split("-").map(Number);
+          const [courseEndYear, courseEndMonth, courseEndDay] = endDateStr
+            .split("-")
+            .map(Number);
+          const courseStartDate = new Date(
+            courseStartYear,
+            courseStartMonth - 1,
+            courseStartDay
+          );
+          const courseEndDate = new Date(
+            courseEndYear,
+            courseEndMonth - 1,
+            courseEndDay
+          );
 
-          const effectiveStart = firstCourseDay && firstCourseDay >= courseStartDate
-            ? firstCourseDay
-            : new Date(Math.max(nextMonthStart.getTime(), courseStartDate.getTime()));
+          const effectiveStart =
+            firstCourseDay && firstCourseDay >= courseStartDate
+              ? firstCourseDay
+              : new Date(
+                  Math.max(nextMonthStart.getTime(), courseStartDate.getTime())
+                );
 
-          const effectiveEnd = lastCourseDay && lastCourseDay <= courseEndDate
-            ? lastCourseDay
-            : new Date(Math.min(nextMonthEnd.getTime(), courseEndDate.getTime()));
+          const effectiveEnd =
+            lastCourseDay && lastCourseDay <= courseEndDate
+              ? lastCourseDay
+              : new Date(
+                  Math.min(nextMonthEnd.getTime(), courseEndDate.getTime())
+                );
 
           return {
             startDate: formatDateLocal(effectiveStart),
@@ -704,15 +803,27 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
 
         const nextMonthDates = calculateNextMonthDates(course.weekdays);
 
-        console.log(`📅 [COPY INVOICES] Рассчитанные даты для ${nextMonth}/${nextYear}:`);
-        console.log(`   startDate: "${nextMonthDates.startDate}" (type: ${typeof nextMonthDates.startDate})`);
-        console.log(`   endDate: "${nextMonthDates.endDate}" (type: ${typeof nextMonthDates.endDate})`);
+        console.log(
+          `📅 [COPY INVOICES] Рассчитанные даты для ${nextMonth}/${nextYear}:`
+        );
+        console.log(
+          `   startDate: "${nextMonthDates.startDate}" (type: ${typeof nextMonthDates.startDate})`
+        );
+        console.log(
+          `   endDate: "${nextMonthDates.endDate}" (type: ${typeof nextMonthDates.endDate})`
+        );
 
         // Вычисляем количество занятий в следующем месяце
-        const calculateLessonsCount = (weekdays, startDate, endDate) => {
+        const calculateLessonsCount = (
+          weekdays: any,
+          startDate: any,
+          endDate: any
+        ) => {
           // Парсим даты БЕЗ timezone
-          const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
-          const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+          const [startYear, startMonth, startDay] = startDate
+            .split("-")
+            .map(Number);
+          const [endYear, endMonth, endDay] = endDate.split("-").map(Number);
           const start = new Date(startYear, startMonth - 1, startDay);
           const end = new Date(endYear, endMonth - 1, endDay);
 
@@ -725,15 +836,26 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
 
           // Преобразуем дни недели в числа
           const weekdayMap = {
-            sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
-            thursday: 4, friday: 5, saturday: 6
+            sunday: 0,
+            monday: 1,
+            tuesday: 2,
+            wednesday: 3,
+            thursday: 4,
+            friday: 5,
+            saturday: 6,
           };
-          const courseDays = weekdays.map(day => weekdayMap[day]).filter(day => day !== undefined);
+          const courseDays = weekdays
+            .map((day) => weekdayMap[day])
+            .filter((day) => day !== undefined);
 
           let lessonsCount = 0;
 
           // Перебираем все дни в диапазоне и считаем совпадения с днями курса
-          for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+          for (
+            let date = new Date(start);
+            date <= end;
+            date.setDate(date.getDate() + 1)
+          ) {
             if (courseDays.includes(date.getDay())) {
               lessonsCount++;
             }
@@ -749,9 +871,13 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
         );
 
         // Рассчитываем общую сумму за месяц
-        const monthlySum = Math.round((course.pricePerLesson || 0) * lessonsCount);
+        const monthlySum = Math.round(
+          (course.pricePerLesson || 0) * lessonsCount
+        );
 
-        console.log(`📊 Расчет для следующего месяца: ${lessonsCount} занятий × ${course.pricePerLesson} = ${monthlySum} ${course.currency}`);
+        console.log(
+          `📊 Расчет для следующего месяца: ${lessonsCount} занятий × ${course.pricePerLesson} = ${monthlySum} ${course.currency}`
+        );
 
         // Создаем новые invoices
         const newInvoices = [];
@@ -766,31 +892,38 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
           currency: course.currency,
           newInvoices: [],
         };
-
+        console.log(`results:`, results);
+        console.log(`currentInvoices:`, currentInvoices);
         for (const invoice of currentInvoices) {
           try {
             // Проверяем, не существует ли уже счет для этого пользователя в следующем месяце
-            const existingInvoice = await strapi.documents('api::invoice.invoice').findMany({
-              filters: {
-                course: {
-                  documentId: courseId,
+            const existingInvoice = await strapi
+              .documents("api::invoice.invoice")
+              .findMany({
+                filters: {
+                  course: {
+                    documentId: courseId,
+                  },
+                  owner: {
+                    documentId: invoice.owner?.documentId,
+                  },
+                  startDate: {
+                    $gte: `${nextYear}-${nextMonth.toString().padStart(2, "0")}-01`,
+                    $lte: `${nextYear}-${nextMonth.toString().padStart(2, "0")}-31`,
+                  },
                 },
-                owner: {
-                  documentId: invoice.owner?.documentId,
-                },
-                startDate: {
-                  $gte: `${nextYear}-${nextMonth.toString().padStart(2, '0')}-01`,
-                  $lte: `${nextYear}-${nextMonth.toString().padStart(2, '0')}-31`,
-                },
-              },
-            });
+              });
 
             if (existingInvoice.length > 0) {
-              console.log(`⚠️ Счет для ${invoice.name} ${invoice.family} уже существует в ${nextMonth}/${nextYear}`);
+              console.log(
+                `⚠️ Счет для ${invoice.name} ${invoice.family} уже существует в ${nextMonth}/${nextYear}`
+              );
               continue;
             }
 
-            console.log(`🔍 [DEBUG] Подготовка к созданию счета для ${invoice.name} ${invoice.family}:`);
+            console.log(
+              `🔍 [DEBUG] Подготовка к созданию счета для ${invoice.name} ${invoice.family}:`
+            );
             console.log(`   nextMonthDates:`, nextMonthDates);
 
             // Создаем новый invoice с рассчитанной суммой
@@ -810,39 +943,57 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
               bonusesUsed: 0, // Бонусы не переносим
             };
 
-            console.log(`📝 [BACKEND] Создание счета для ${invoice.name} ${invoice.family}:`);
-            console.log(`   startDate: "${newInvoiceData.startDate}" (type: ${typeof newInvoiceData.startDate})`);
-            console.log(`   endDate: "${newInvoiceData.endDate}" (type: ${typeof newInvoiceData.endDate})`);
-            console.log(`   sum: ${newInvoiceData.sum}, currency: ${newInvoiceData.currency}`);
-            console.log(`   Полный объект newInvoiceData:`, JSON.stringify(newInvoiceData, null, 2));
+            console.log(
+              `📝 [BACKEND] Создание счета для ${invoice.name} ${invoice.family}:`
+            );
+            console.log(
+              `   startDate: "${newInvoiceData.startDate}" (type: ${typeof newInvoiceData.startDate})`
+            );
+            console.log(
+              `   endDate: "${newInvoiceData.endDate}" (type: ${typeof newInvoiceData.endDate})`
+            );
+            console.log(
+              `   sum: ${newInvoiceData.sum}, currency: ${newInvoiceData.currency}`
+            );
+            console.log(
+              `   Полный объект newInvoiceData:`,
+              JSON.stringify(newInvoiceData, null, 2)
+            );
 
-            const newInvoice = await strapi.documents('api::invoice.invoice').create({
-              data: newInvoiceData,
-            });
+            const newInvoice = await strapi
+              .documents("api::invoice.invoice")
+              .create({
+                data: newInvoiceData,
+              });
 
             newInvoices.push(newInvoice);
             results.copiedCount++;
 
-            console.log(`✅ Создан новый счет для ${invoice.name} ${invoice.family} на ${nextMonth}/${nextYear}`);
-
+            console.log(
+              `✅ Создан новый счет для ${invoice.name} ${invoice.family} на ${nextMonth}/${nextYear}`
+            );
           } catch (createError) {
-            console.error(`❌ Ошибка создания счета для ${invoice.name} ${invoice.family}:`, createError);
+            console.error(
+              `❌ Ошибка создания счета для ${invoice.name} ${invoice.family}:`,
+              createError
+            );
           }
         }
 
         results.newInvoices = newInvoices;
 
-        console.log(`📊 Результаты копирования: ${results.copiedCount} из ${results.originalCount} счетов скопировано`);
+        console.log(
+          `📊 Результаты копирования: ${results.copiedCount} из ${results.originalCount} счетов скопировано`
+        );
 
         return ctx.send({
           success: true,
           message: `Скопировано ${results.copiedCount} из ${results.originalCount} счетов на ${nextMonth}/${nextYear}`,
           results,
         });
-
       } catch (error) {
-        console.error('❌ Ошибка в copyInvoicesToNextMonth:', error);
-        return ctx.internalServerError('Внутренняя ошибка сервера');
+        console.error("❌ Ошибка в copyInvoicesToNextMonth:", error);
+        return ctx.internalServerError("Внутренняя ошибка сервера");
       }
     },
 
@@ -890,7 +1041,7 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
         }
 
         console.log(
-          `👤 Владелец счета: ${invoice.owner.username}, WhatsApp верифицирован: ${invoice.owner.whatsapp_phone_verified}, Telegram верифицирован: ${invoice.owner.telegram_phone_verified}, Telegram chat_id: ${(invoice.owner as any).telegram_chat_id || 'не установлен'}`
+          `👤 Владелец счета: ${invoice.owner.username}, WhatsApp верифицирован: ${invoice.owner.whatsapp_phone_verified}, Telegram верифицирован: ${invoice.owner.telegram_phone_verified}, Telegram chat_id: ${(invoice.owner as any).telegram_chat_id || "не установлен"}`
         );
 
         // Определяем доступный мессенджер (приоритет WhatsApp)
@@ -944,7 +1095,9 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
             return weekdays.map((day) => weekdayNames[day] || day).join(", ");
           };
 
-          const weekdaysText = formatWeekdays(invoice.course.weekdays as string[]);
+          const weekdaysText = formatWeekdays(
+            invoice.course.weekdays as string[]
+          );
 
           if (
             invoice.course.startTime &&
@@ -952,14 +1105,25 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
             invoice.course.timezone
           ) {
             // Убираем секунды из времени (16:00:00 -> 16:00)
-            const formatTime = (time: string) => time.split(":").slice(0, 2).join(":");
+            const formatTime = (time: string) =>
+              time.split(":").slice(0, 2).join(":");
             // Определяем месяц
             let monthText = "";
             if (invoice.startDate) {
               const startDate = new Date(invoice.startDate);
               const monthNames = [
-                "январь", "февраль", "март", "апрель", "май", "июнь",
-                "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"
+                "январь",
+                "февраль",
+                "март",
+                "апрель",
+                "май",
+                "июнь",
+                "июль",
+                "август",
+                "сентябрь",
+                "октябрь",
+                "ноябрь",
+                "декабрь",
               ];
               monthText = `, месяц: ${monthNames[startDate.getMonth()]}`;
             }
