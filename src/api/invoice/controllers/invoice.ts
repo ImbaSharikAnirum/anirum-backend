@@ -652,8 +652,36 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
 
           // Проверяем границы общего курса
           // Парсим даты курса БЕЗ UTC (как в frontend)
-          const startDateStr = typeof course.startDate === 'string' ? course.startDate : course.startDate.toISOString().split('T')[0];
-          const endDateStr = typeof course.endDate === 'string' ? course.endDate : course.endDate.toISOString().split('T')[0];
+          let startDateStr: string;
+          let endDateStr: string;
+
+          if (typeof course.startDate === 'string') {
+            startDateStr = course.startDate;
+          } else if (course.startDate instanceof Date) {
+            // Используем локальные компоненты даты, а не UTC
+            const year = course.startDate.getFullYear();
+            const month = String(course.startDate.getMonth() + 1).padStart(2, '0');
+            const day = String(course.startDate.getDate()).padStart(2, '0');
+            startDateStr = `${year}-${month}-${day}`;
+          } else {
+            // Fallback для неизвестных типов
+            startDateStr = String(course.startDate);
+          }
+
+          if (typeof course.endDate === 'string') {
+            endDateStr = course.endDate;
+          } else if (course.endDate instanceof Date) {
+            // Используем локальные компоненты даты, а не UTC
+            const year = course.endDate.getFullYear();
+            const month = String(course.endDate.getMonth() + 1).padStart(2, '0');
+            const day = String(course.endDate.getDate()).padStart(2, '0');
+            endDateStr = `${year}-${month}-${day}`;
+          } else {
+            // Fallback для неизвестных типов
+            endDateStr = String(course.endDate);
+          }
+
+          console.log(`📅 [COURSE DATES] startDateStr: "${startDateStr}", endDateStr: "${endDateStr}"`);
 
           const [courseStartYear, courseStartMonth, courseStartDay] = startDateStr.split('-').map(Number);
           const [courseEndYear, courseEndMonth, courseEndDay] = endDateStr.split('-').map(Number);
@@ -682,10 +710,14 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
 
         // Вычисляем количество занятий в следующем месяце
         const calculateLessonsCount = (weekdays, startDate, endDate) => {
+          // Парсим даты БЕЗ timezone
+          const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+          const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+          const start = new Date(startYear, startMonth - 1, startDay);
+          const end = new Date(endYear, endMonth - 1, endDay);
+
           if (!weekdays || !Array.isArray(weekdays) || weekdays.length === 0) {
             // Если дни недели не указаны, считаем как ежедневные занятия
-            const start = new Date(startDate);
-            const end = new Date(endDate);
             const diffTime = Math.abs(end.getTime() - start.getTime());
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
             return diffDays;
@@ -699,8 +731,6 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
           const courseDays = weekdays.map(day => weekdayMap[day]).filter(day => day !== undefined);
 
           let lessonsCount = 0;
-          const start = new Date(startDate);
-          const end = new Date(endDate);
 
           // Перебираем все дни в диапазоне и считаем совпадения с днями курса
           for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
@@ -784,6 +814,7 @@ ${scheduleInfo ? scheduleInfo + '\n\n' : ''}Если у вас возникну�
             console.log(`   startDate: "${newInvoiceData.startDate}" (type: ${typeof newInvoiceData.startDate})`);
             console.log(`   endDate: "${newInvoiceData.endDate}" (type: ${typeof newInvoiceData.endDate})`);
             console.log(`   sum: ${newInvoiceData.sum}, currency: ${newInvoiceData.currency}`);
+            console.log(`   Полный объект newInvoiceData:`, JSON.stringify(newInvoiceData, null, 2));
 
             const newInvoice = await strapi.documents('api::invoice.invoice').create({
               data: newInvoiceData,
