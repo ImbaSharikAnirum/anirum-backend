@@ -604,30 +604,13 @@ ${scheduleInfo ? scheduleInfo + "\n\n" : ""}Если у вас возникну�
           );
         }
 
-        console.log(`📋 [COPY INVOICES] Входящие данные:`);
-        console.log(`   courseId: "${courseId}"`);
-        console.log(
-          `   currentMonth: ${currentMonth} (type: ${typeof currentMonth})`
-        );
-        console.log(
-          `   currentYear: ${currentYear} (type: ${typeof currentYear})`
-        );
-
         // Функция для форматирования даты для типа "date" в Strapi
         // Тип "date" требует формат YYYY-MM-DD БЕЗ времени и timezone
         const formatDateLocal = (date: any) => {
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, "0");
           const day = String(date.getDate()).padStart(2, "0");
-          const dateString = `${year}-${month}-${day}`;
-
-          console.log(
-            `🔧 [formatDateLocal] Input:`,
-            date,
-            `-> Output: "${dateString}"`
-          );
-
-          return dateString;
+          return `${year}-${month}-${day}`;
         };
 
         // Получаем информацию о курсе
@@ -669,10 +652,6 @@ ${scheduleInfo ? scheduleInfo + "\n\n" : ""}Если у вас возникну�
         if (currentInvoices.length === 0) {
           return ctx.badRequest("Нет счетов для копирования в текущем месяце");
         }
-
-        console.log(
-          `👥 Найдено счетов для копирования: ${currentInvoices.length}`
-        );
 
         // Вычисляем следующий месяц
         let nextMonth = currentMonth + 1;
@@ -761,10 +740,6 @@ ${scheduleInfo ? scheduleInfo + "\n\n" : ""}Если у вас возникну�
             endDateStr = String(course.endDate);
           }
 
-          console.log(
-            `📅 [COURSE DATES] startDateStr: "${startDateStr}", endDateStr: "${endDateStr}"`
-          );
-
           const [courseStartYear, courseStartMonth, courseStartDay] =
             startDateStr.split("-").map(Number);
           const [courseEndYear, courseEndMonth, courseEndDay] = endDateStr
@@ -802,10 +777,6 @@ ${scheduleInfo ? scheduleInfo + "\n\n" : ""}Если у вас возникну�
         };
 
         const nextMonthDates = calculateNextMonthDates(course.weekdays);
-
-        console.log(
-          `📅 Даты для ${nextMonth}/${nextYear}: ${nextMonthDates.startDate} - ${nextMonthDates.endDate}`
-        );
 
         // Вычисляем количество занятий в следующем месяце
         const calculateLessonsCount = (
@@ -869,10 +840,6 @@ ${scheduleInfo ? scheduleInfo + "\n\n" : ""}Если у вас возникну�
           (course.pricePerLesson || 0) * lessonsCount
         );
 
-        console.log(
-          `📊 Расчет для следующего месяца: ${lessonsCount} занятий × ${course.pricePerLesson} = ${monthlySum} ${course.currency}`
-        );
-
         // Создаем новые invoices
         const newInvoices = [];
         const results = {
@@ -909,11 +876,8 @@ ${scheduleInfo ? scheduleInfo + "\n\n" : ""}Если у вас возникну�
                   },
                 },
               });
-            console.log(`existingInvoice для ${invoice.name}: ${existingInvoice.length} счетов`);
+
             if (existingInvoice.length > 0) {
-              console.log(
-                `⚠️ Счет для ${invoice.name} ${invoice.family} уже существует в ${nextMonth}/${nextYear}`
-              );
               continue;
             }
 
@@ -928,32 +892,10 @@ ${scheduleInfo ? scheduleInfo + "\n\n" : ""}Если у вас возникну�
               statusPayment: false,
               course: courseId,
               owner: invoice.owner?.documentId,
-              // Устанавливаем originalSum как полную сумму без скидок
               originalSum: monthlySum,
-              discountAmount: 0, // Скидки не переносим
-              bonusesUsed: 0, // Бонусы не переносим
+              discountAmount: 0,
+              bonusesUsed: 0,
             };
-
-            console.log(
-              `\n━━━ СОЗДАНИЕ СЧЕТА ${invoice.name} ${invoice.family} ━━━`
-            );
-            console.log(
-              `startDate: "${newInvoiceData.startDate}" (type: ${typeof newInvoiceData.startDate}, length: ${newInvoiceData.startDate?.length})`
-            );
-            console.log(
-              `endDate: "${newInvoiceData.endDate}" (type: ${typeof newInvoiceData.endDate}, length: ${newInvoiceData.endDate?.length})`
-            );
-            console.log(
-              `Regex test startDate: ${/^\d{4}-\d{2}-\d{2}$/.test(newInvoiceData.startDate)}`
-            );
-            console.log(
-              `Regex test endDate: ${/^\d{4}-\d{2}-\d{2}$/.test(newInvoiceData.endDate)}`
-            );
-            console.log(
-              `Полный объект:`,
-              JSON.stringify(newInvoiceData, null, 2)
-            );
-            console.log(`━━━ ВЫЗОВ create() ━━━\n`);
 
             const newInvoice = await strapi
               .documents("api::invoice.invoice")
@@ -963,10 +905,6 @@ ${scheduleInfo ? scheduleInfo + "\n\n" : ""}Если у вас возникну�
 
             newInvoices.push(newInvoice);
             results.copiedCount++;
-
-            console.log(
-              `✅ Создан новый счет для ${invoice.name} ${invoice.family} на ${nextMonth}/${nextYear}`
-            );
           } catch (createError) {
             console.error(
               `❌ Ошибка создания счета для ${invoice.name} ${invoice.family}:`,
@@ -976,10 +914,6 @@ ${scheduleInfo ? scheduleInfo + "\n\n" : ""}Если у вас возникну�
         }
 
         results.newInvoices = newInvoices;
-
-        console.log(
-          `📊 Результаты копирования: ${results.copiedCount} из ${results.originalCount} счетов скопировано`
-        );
 
         return ctx.send({
           success: true,
