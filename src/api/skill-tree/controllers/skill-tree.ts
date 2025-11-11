@@ -7,40 +7,6 @@ import { factories } from '@strapi/strapi'
 export default factories.createCoreController('api::skill-tree.skill-tree', ({ strapi }) => ({
 
   /**
-   * Переопределяем findOne чтобы возвращать ВСЕ гайды (включая не approved)
-   */
-  async findOne(ctx: any) {
-    const { id } = ctx.params
-    const { query } = ctx
-
-    // Загружаем дерево со всеми связанными данными
-    const entity = await strapi.entityService.findOne('api::skill-tree.skill-tree', id, {
-      ...query,
-      populate: {
-        image: true,
-        owner: {
-          fields: ['username', 'email']
-        },
-        skills: {
-          populate: {
-            image: true,
-            guides: {
-              // ВАЖНО: не фильтруем по approved, возвращаем все гайды
-              filters: {},
-              populate: {
-                image: true
-              }
-            }
-          }
-        }
-      }
-    })
-
-    const sanitizedEntity = await this.sanitizeOutput(entity, ctx)
-    return this.transformResponse(sanitizedEntity)
-  },
-
-  /**
    * Batch публикация дерева навыков с гайдами
    * Принимает все данные за один запрос и сохраняет атомарно
    *
