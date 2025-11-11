@@ -7,6 +7,41 @@ import { factories } from '@strapi/strapi'
 export default factories.createCoreController('api::skill-tree.skill-tree', ({ strapi }) => ({
 
   /**
+   * ВРЕМЕННЫЙ МЕТОД: Публикация всех гайдов
+   * GET /skill-trees/publish-all-guides
+   */
+  async publishAllGuides(ctx: any) {
+    try {
+      // Получаем все гайды
+      const guides = await strapi.entityService.findMany('api::guide.guide', {
+        filters: {
+          publishedAt: null
+        }
+      }) as any[]
+
+      console.log(`Найдено ${guides.length} неопубликованных гайдов`)
+
+      // Публикуем каждый гайд
+      for (const guide of guides) {
+        await strapi.entityService.update('api::guide.guide', guide.id, {
+          data: {
+            publishedAt: new Date()
+          }
+        })
+      }
+
+      return {
+        success: true,
+        published: guides.length,
+        message: `Опубликовано ${guides.length} гайдов`
+      }
+    } catch (error) {
+      console.error('Ошибка публикации гайдов:', error)
+      return ctx.throw(500, 'Ошибка публикации гайдов')
+    }
+  },
+
+  /**
    * Batch публикация дерева навыков с гайдами
    * Принимает все данные за один запрос и сохраняет атомарно
    *
