@@ -12,28 +12,32 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
    */
   async publishAllGuides(ctx: any) {
     try {
-      // Получаем все гайды
-      const guides = await strapi.entityService.findMany('api::guide.guide', {
-        filters: {
-          publishedAt: null
-        }
+      // Получаем все draft гайды используя Document Service
+      const guides = await strapi.documents('api::guide.guide').findMany({
+        status: 'draft'
       }) as any[]
 
       console.log(`Найдено ${guides.length} неопубликованных гайдов`)
 
-      // Публикуем каждый гайд
+      let published = 0
+      // Публикуем каждый гайд используя Document Service API
       for (const guide of guides) {
-        await strapi.entityService.update('api::guide.guide', guide.id, {
-          data: {
-            publishedAt: new Date()
-          }
-        })
+        try {
+          await strapi.documents('api::guide.guide').publish({
+            documentId: guide.documentId
+          })
+          published++
+          console.log(`✅ Опубликован гайд: ${guide.documentId}`)
+        } catch (err) {
+          console.error(`❌ Ошибка публикации гайда ${guide.documentId}:`, err)
+        }
       }
 
       return {
         success: true,
-        published: guides.length,
-        message: `Опубликовано ${guides.length} гайдов`
+        published: published,
+        total: guides.length,
+        message: `Опубликовано ${published} из ${guides.length} гайдов`
       }
     } catch (error) {
       console.error('Ошибка публикации гайдов:', error)
