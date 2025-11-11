@@ -258,14 +258,25 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
 
           console.log('guideEdges после обработки:', JSON.stringify(updatedGuideEdges))
 
+          // Получаем documentId навыка (с учетом маппинга для новых навыков)
           const realSkillDocId = skillIdMap.get(skillData.tempId) || skillData.documentId
 
-          await strapi.entityService.update('api::skill.skill', realSkillDocId, {
+          // Преобразуем documentId в numeric id для entityService
+          const realSkillNumericId = skillDocIdToNumericId.get(realSkillDocId)
+
+          if (!realSkillNumericId) {
+            console.error(`❌ Не найден numeric ID для навыка: ${realSkillDocId}`)
+            continue
+          }
+
+          console.log(`Обновление guideEdges для навыка ${realSkillDocId} (numeric id: ${realSkillNumericId})`)
+
+          await strapi.entityService.update('api::skill.skill', realSkillNumericId, {
             data: {
               guideEdges: updatedGuideEdges
             }
           })
-          console.log(`Обновлены guideEdges для навыка ${realSkillDocId}`)
+          console.log(`✅ Обновлены guideEdges для навыка ${realSkillDocId}`)
         }
       }
 
