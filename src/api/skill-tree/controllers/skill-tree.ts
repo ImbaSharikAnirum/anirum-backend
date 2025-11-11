@@ -161,6 +161,17 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
         if (guideData.id) {
           // Обновляем существующий гайд (получен numeric ID)
           console.log(`Обновление существующего гайда с id: ${guideData.id}`)
+
+          // Проверяем, существует ли гайд
+          const existingGuide = await strapi.entityService.findOne('api::guide.guide', guideData.id, {
+            fields: ['id']
+          }).catch(() => null)
+
+          if (!existingGuide) {
+            console.error(`❌ Гайд с id ${guideData.id} не найден в базе, пропускаем`)
+            continue
+          }
+
           const updateData: any = {
             title: guideData.title,
             text: guideData.text,
