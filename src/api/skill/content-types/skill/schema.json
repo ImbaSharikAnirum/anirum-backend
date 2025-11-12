@@ -36,6 +36,9 @@
     "guideEdges": {
       "type": "json"
     },
+    "guidePositions": {
+      "type": "json"
+    },
     "skill_tree": {
       "type": "relation",
       "relation": "manyToOne",

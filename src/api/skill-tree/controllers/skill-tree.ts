@@ -339,22 +339,14 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
         }
       }
 
-      // 6. Обновляем guideEdges для каждого навыка
-      console.log('Обновление guideEdges для навыков...')
+      // 6. Обновляем guideEdges и guidePositions для каждого навыка
+      console.log('Обновление guideEdges и guidePositions для навыков...')
       for (const skillData of skills) {
-        if (skillData.guideEdges && skillData.guideEdges.length > 0) {
-          console.log('Навык имеет guideEdges:', skillData.title, 'кол-во связей:', skillData.guideEdges.length)
-          console.log('guideEdges до обработки:', JSON.stringify(skillData.guideEdges))
-          console.log('guideIdMap:', JSON.stringify(Object.fromEntries(guideIdMap)))
+        const hasGuideEdges = skillData.guideEdges && skillData.guideEdges.length > 0
+        const hasGuidePositions = skillData.guidePositions && Object.keys(skillData.guidePositions).length > 0
 
-          // Заменяем временные ID гайдов на реальные
-          const updatedGuideEdges = skillData.guideEdges.map((edge: any) => ({
-            ...edge,
-            source: guideIdMap.get(edge.source) || edge.source,
-            target: guideIdMap.get(edge.target) || edge.target,
-          }))
-
-          console.log('guideEdges после обработки:', JSON.stringify(updatedGuideEdges))
+        if (hasGuideEdges || hasGuidePositions) {
+          console.log('Навык:', skillData.title)
 
           // Получаем documentId навыка (с учетом маппинга для новых навыков)
           const realSkillDocId = skillIdMap.get(skillData.tempId) || skillData.documentId
@@ -367,14 +359,46 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
             continue
           }
 
-          console.log(`Обновление guideEdges для навыка ${realSkillDocId} (numeric id: ${realSkillNumericId})`)
+          const updateData: any = {}
+
+          // Обрабатываем guideEdges
+          if (hasGuideEdges) {
+            console.log('  guideEdges:', skillData.guideEdges.length, 'связей')
+            console.log('  guideEdges до обработки:', JSON.stringify(skillData.guideEdges))
+
+            // Заменяем временные ID гайдов на реальные
+            const updatedGuideEdges = skillData.guideEdges.map((edge: any) => ({
+              ...edge,
+              source: guideIdMap.get(edge.source) || edge.source,
+              target: guideIdMap.get(edge.target) || edge.target,
+            }))
+
+            console.log('  guideEdges после обработки:', JSON.stringify(updatedGuideEdges))
+            updateData.guideEdges = updatedGuideEdges
+          }
+
+          // Обрабатываем guidePositions
+          if (hasGuidePositions) {
+            console.log('  guidePositions:', Object.keys(skillData.guidePositions).length, 'позиций')
+            console.log('  guidePositions до обработки:', JSON.stringify(skillData.guidePositions))
+
+            // Заменяем временные ID гайдов на реальные в ключах позиций
+            const updatedGuidePositions: Record<string, any> = {}
+            for (const [guideId, position] of Object.entries(skillData.guidePositions)) {
+              const realGuideId = guideIdMap.get(guideId) || guideId
+              updatedGuidePositions[realGuideId] = position
+            }
+
+            console.log('  guidePositions после обработки:', JSON.stringify(updatedGuidePositions))
+            updateData.guidePositions = updatedGuidePositions
+          }
+
+          console.log(`Обновление для навыка ${realSkillDocId} (numeric id: ${realSkillNumericId})`)
 
           await strapi.entityService.update('api::skill.skill', realSkillNumericId, {
-            data: {
-              guideEdges: updatedGuideEdges
-            }
+            data: updateData
           })
-          console.log(`✅ Обновлены guideEdges для навыка ${realSkillDocId}`)
+          console.log(`✅ Обновлены данные для навыка ${realSkillDocId}`)
         }
       }
 
