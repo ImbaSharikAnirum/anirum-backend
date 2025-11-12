@@ -7,6 +7,62 @@ import { factories } from '@strapi/strapi'
 export default factories.createCoreController('api::skill-tree.skill-tree', ({ strapi }) => ({
 
   /**
+   * Переопределяем findOne для получения всех гайдов (включая draft)
+   * GET /skill-trees/:documentId
+   */
+  async findOne(ctx: any) {
+    const { id } = ctx.params;
+
+    // Используем стандартный метод с правильной популяцией
+    const entity = await strapi.documents('api::skill-tree.skill-tree').findOne({
+      documentId: id,
+      // Указываем что хотим получить все статусы (draft + published)
+      status: 'draft',
+      populate: {
+        image: true,
+        owner: {
+          fields: ['username', 'email']
+        },
+        skills: {
+          populate: {
+            image: true,
+            guides: {
+              // Явно указываем что хотим все гайды
+              filters: {},
+              populate: {
+                image: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Для каждого навыка получаем ВСЕ связанные гайды (включая draft)
+    if (entity && entity.skills) {
+      for (const skill of entity.skills) {
+        if (skill.id) {
+          // Получаем все гайды этого навыка через entityService (включая draft)
+          const skillWithGuides = await strapi.entityService.findOne('api::skill.skill', skill.id, {
+            populate: {
+              guides: {
+                populate: ['image']
+              }
+            }
+          }) as any;
+
+          // Заменяем гайды на полный список (включая draft)
+          if (skillWithGuides && skillWithGuides.guides) {
+            skill.guides = skillWithGuides.guides;
+          }
+        }
+      }
+    }
+
+    return { data: entity };
+  },
+
+  /**
    * Batch публикация дерева навыков с гайдами
    * Принимает все данные за один запрос и сохраняет атомарно
    *
