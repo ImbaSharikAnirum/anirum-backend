@@ -92,16 +92,12 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
 
     try {
       // 1. Проверяем, что пользователь владелец дерева или менеджер
-      console.log('=== PUBLISH START ===')
-      console.log('id from params:', id)
-      console.log('Загрузка дерева...')
       const tree = await strapi.entityService.findOne('api::skill-tree.skill-tree', id, {
         populate: {
           owner: true,
           skills: true
         }
       }) as any
-      console.log('Дерево загружено, id:', tree?.id, 'documentId:', tree?.documentId, 'skills:', tree?.skills?.length)
 
       if (!tree) {
         return ctx.notFound('Дерево навыков не найдено')
@@ -128,35 +124,25 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
       const guideIdMap = new Map<string, string>()
 
       // 2. Обработка удаленных навыков
-      console.log('Удаление навыков:', deletedSkills)
       for (const skillDocId of deletedSkills) {
         // Находим навык в дереве чтобы получить его числовой id
         const skillToDelete = tree.skills?.find((s: any) => s.documentId === skillDocId)
         if (skillToDelete) {
-          console.log('Удаление навыка с id:', skillToDelete.id)
           await strapi.entityService.delete('api::skill.skill', skillToDelete.id)
         }
       }
 
       // 3. Обработка навыков (создание/обновление) с изображениями
-      console.log('Обработка навыков, всего:', skills.length)
-      console.log('🔍 Первый навык (полный объект):', JSON.stringify(skills[0], null, 2))
-
       for (const skillData of skills) {
         // Используем imageId, который был загружен на frontend
         const imageId = skillData.imageId
-
-        console.log('📝 Навык:', skillData.title, 'imageId:', imageId, 'тип imageId:', typeof imageId)
 
         if (skillData.documentId) {
           // Обновляем существующий навык
           const numericId = skillDocIdToNumericId.get(skillData.documentId)
           if (!numericId) {
-            console.error('Навык не найден:', skillData.documentId)
             continue
           }
-
-          console.log('Обновление навыка:', skillData.documentId, 'id:', numericId)
           const updateData: any = {
             title: skillData.title,
             position: skillData.position,
@@ -171,7 +157,6 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
           })
         } else if (skillData.tempId) {
           // Создаем новый навык
-          console.log('Создание навыка с treeNumericId:', treeNumericId)
           const createData: any = {
             title: skillData.title,
             position: skillData.position,
@@ -188,35 +173,24 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
 
           // Сохраняем маппинг
           skillIdMap.set(skillData.tempId, createdSkill.documentId)
-          console.log('Создан навык:', createdSkill.documentId)
         }
       }
 
       // 4. Обработка гайдов (создание/обновление) с изображениями
-      console.log('Обработка гайдов, всего:', guides.length)
       for (const guideData of guides) {
         // Используем imageId, который был загружен на frontend
         const imageId = guideData.imageId
-
-        console.log('Гайд:', guideData.title, 'имеет imageId:', imageId)
 
         // Определяем реальный skillId (с учетом маппинга)
         const realSkillDocId = skillIdMap.get(guideData.skillId) || guideData.skillId
         const realSkillNumericId = skillDocIdToNumericId.get(realSkillDocId)
 
-        console.log(`Обработка гайда: ${guideData.title}`)
-        console.log(`  skillId из данных: ${guideData.skillId}`)
-        console.log(`  realSkillDocId: ${realSkillDocId}`)
-        console.log(`  realSkillNumericId: ${realSkillNumericId}`)
-
         if (!realSkillNumericId) {
-          console.error(`❌ Не найден числовой ID для навыка с documentId: ${realSkillDocId}`)
           continue
         }
 
         if (guideData.id) {
           // Обновляем существующий гайд (получен numeric ID)
-          console.log(`Обновление существующего гайда с id: ${guideData.id}`)
 
           // Проверяем, существует ли гайд
           const existingGuide = await strapi.entityService.findOne('api::guide.guide', guideData.id, {
@@ -224,7 +198,6 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
           }).catch(() => null)
 
           if (!existingGuide) {
-            console.error(`❌ Гайд с id ${guideData.id} не найден в базе, пропускаем`)
             continue
           }
 
@@ -252,8 +225,6 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
             .filter((g: any) => g && g.id)
             .map((g: any) => g.id)
 
-          console.log(`Существующие гайды навыка (id): ${existingGuideIds.join(', ')}`)
-
           if (!existingGuideIds.includes(guideData.id)) {
             // Гайд не связан с этим навыком, добавляем связь
             // Проверяем, что все ID в массиве существуют
@@ -265,25 +236,17 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
 
               if (guideExists) {
                 validGuideIds.push(gId)
-              } else {
-                console.warn(`⚠️ Пропускаем несуществующий гайд с id: ${gId}`)
               }
             }
-
-            console.log(`Добавление связи: навык ${realSkillNumericId} <- валидные гайды: ${validGuideIds.join(', ')}`)
 
             await strapi.entityService.update('api::skill.skill', realSkillNumericId, {
               data: {
                 guides: validGuideIds
               } as any
             })
-            console.log(`✅ Связан существующий гайд (id: ${guideData.id}) с навыком ${realSkillDocId}`)
-          } else {
-            console.log(`Гайд (id: ${guideData.id}) уже связан с навыком ${realSkillDocId}`)
           }
         } else if (guideData.tempId) {
           // Создаем новый гайд
-          console.log(`Создание нового гайда: ${guideData.title}`)
           const createData: any = {
             title: guideData.title,
             text: guideData.text || '',
@@ -302,7 +265,6 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
 
           // Сохраняем маппинг
           guideIdMap.set(guideData.tempId, createdGuide.documentId)
-          console.log(`Создан гайд с documentId: ${createdGuide.documentId}`)
 
           // 5. Связываем гайд с навыком (many-to-many relation)
           const skill = await strapi.entityService.findOne('api::skill.skill', realSkillNumericId, {
@@ -323,31 +285,23 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
 
             if (guideExists) {
               validGuideIds.push(gId)
-            } else {
-              console.warn(`⚠️ Пропускаем несуществующий гайд с id: ${gId}`)
             }
           }
-
-          console.log(`Добавление связи: навык ${realSkillNumericId} <- валидные гайды: ${validGuideIds.join(', ')}`)
 
           await strapi.entityService.update('api::skill.skill', realSkillNumericId, {
             data: {
               guides: validGuideIds
             } as any
           })
-          console.log(`✅ Связан новый гайд ${createdGuide.documentId} (id: ${createdGuide.id}) с навыком ${realSkillDocId}`)
         }
       }
 
       // 6. Обновляем guideEdges и guidePositions для каждого навыка
-      console.log('Обновление guideEdges и guidePositions для навыков...')
       for (const skillData of skills) {
         const hasGuideEdges = skillData.guideEdges && skillData.guideEdges.length > 0
         const hasGuidePositions = skillData.guidePositions && Object.keys(skillData.guidePositions).length > 0
 
         if (hasGuideEdges || hasGuidePositions) {
-          console.log('Навык:', skillData.title)
-
           // Получаем documentId навыка (с учетом маппинга для новых навыков)
           const realSkillDocId = skillIdMap.get(skillData.tempId) || skillData.documentId
 
@@ -355,7 +309,6 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
           const realSkillNumericId = skillDocIdToNumericId.get(realSkillDocId)
 
           if (!realSkillNumericId) {
-            console.error(`❌ Не найден numeric ID для навыка: ${realSkillDocId}`)
             continue
           }
 
@@ -363,9 +316,6 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
 
           // Обрабатываем guideEdges
           if (hasGuideEdges) {
-            console.log('  guideEdges:', skillData.guideEdges.length, 'связей')
-            console.log('  guideEdges до обработки:', JSON.stringify(skillData.guideEdges))
-
             // Заменяем временные ID гайдов на реальные
             const updatedGuideEdges = skillData.guideEdges.map((edge: any) => ({
               ...edge,
@@ -373,15 +323,11 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
               target: guideIdMap.get(edge.target) || edge.target,
             }))
 
-            console.log('  guideEdges после обработки:', JSON.stringify(updatedGuideEdges))
             updateData.guideEdges = updatedGuideEdges
           }
 
           // Обрабатываем guidePositions
           if (hasGuidePositions) {
-            console.log('  guidePositions:', Object.keys(skillData.guidePositions).length, 'позиций')
-            console.log('  guidePositions до обработки:', JSON.stringify(skillData.guidePositions))
-
             // Заменяем временные ID гайдов на реальные в ключах позиций
             const updatedGuidePositions: Record<string, any> = {}
             for (const [guideId, position] of Object.entries(skillData.guidePositions)) {
@@ -389,16 +335,12 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
               updatedGuidePositions[realGuideId] = position
             }
 
-            console.log('  guidePositions после обработки:', JSON.stringify(updatedGuidePositions))
             updateData.guidePositions = updatedGuidePositions
           }
-
-          console.log(`Обновление для навыка ${realSkillDocId} (numeric id: ${realSkillNumericId})`)
 
           await strapi.entityService.update('api::skill.skill', realSkillNumericId, {
             data: updateData
           })
-          console.log(`✅ Обновлены данные для навыка ${realSkillDocId}`)
         }
       }
 
@@ -410,7 +352,6 @@ export default factories.createCoreController('api::skill-tree.skill-tree', ({ s
       }))
 
       // 8. Обновляем дерево со связями
-      console.log('Обновление дерева с id:', id)
       const updatedTree = await strapi.entityService.update('api::skill-tree.skill-tree', id, {
         data: {
           skillEdges: updatedSkillEdges
